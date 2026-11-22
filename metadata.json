@@ -1,0 +1,6 @@
+{
+  "name": "El Abed Mall",
+  "description": "Official visitor guide and interactive indoor map simulator for El Abed Mall in Toukh, Qalyubia, featuring store directory, offers, events, Google Maps access, and live floor navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

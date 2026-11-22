@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">El Abed Mall</string>
+    <string name="notification_channel_id">el_abed_mall_updates</string>
+    <string name="notification_channel_name">تنبيهات وعروض مول العابد</string>
+</resources>

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">مول العابد</string>
+    <string name="notification_channel_name">تنبيهات وعروض مول العابد</string>
+</resources>
