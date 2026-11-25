@@ -254,7 +254,7 @@ fun DirectoryScreen(
                         color = Color(0xFFF3F6FC),
                         border = BorderStroke(
                             1.2.dp,
-                            if (searchQuery.isNotBlank()) ElAbedRoyalBlue else ElAbedOutline
+                            if (searchQuery.isNotBlank()) ElAbedRoyalBlue else Color(0xFFC3CBDE)
                         ),
                         shadowElevation = 0.dp,
                         modifier = Modifier
@@ -342,7 +342,7 @@ fun DirectoryScreen(
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFF0F3FA),
-                        border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.7f)),
+                        border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -411,7 +411,7 @@ fun DirectoryScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = ElAbedRoyalBlue,
                                 selectedLabelColor = Color.White,
-                                containerColor = ElAbedSurfaceVariant
+                                containerColor = Color(0xFFEEF1F8)
                             )
                         )
                     }
@@ -432,7 +432,7 @@ fun DirectoryScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = ElAbedRoyalBlue,
                                 selectedLabelColor = Color.White,
-                                containerColor = ElAbedSurfaceVariant
+                                containerColor = Color(0xFFEEF1F8)
                             )
                         )
                     }
