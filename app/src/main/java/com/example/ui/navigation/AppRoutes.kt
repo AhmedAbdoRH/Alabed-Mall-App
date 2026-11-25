@@ -38,3 +38,6 @@ object ContentManagerRoute
 
 @Serializable
 object TripPlannerRoute
+
+@Serializable
+object TasksShoppingRoute

@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.local.SeedCatalogData
 import com.example.data.search.MallSearchEngine
+import com.example.data.search.MallTaskPlaceSuggester
 import com.example.data.search.SearchPathTab
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,6 +43,26 @@ class MallSearchEngineTest {
             offers = SeedCatalogData.offers,
             rawQuery = "سامسونج",
             searchTab = SearchPathTab.ALL
+        )
+        assertTrue(suggestions.isNotEmpty())
+        assertTrue(suggestions.first().store.id == "samsung")
+    }
+
+    @Test
+    fun task_suggester_suggests_hypermarket_for_meat_or_groceries() {
+        val suggestions = MallTaskPlaceSuggester.suggestPlacesForTask(
+            query = "لحمة وخضار ولبن",
+            places = SeedCatalogData.stores
+        )
+        assertTrue(suggestions.isNotEmpty())
+        assertTrue(suggestions.first().store.id == "hypermarket")
+    }
+
+    @Test
+    fun task_suggester_suggests_electronics_for_charger() {
+        val suggestions = MallTaskPlaceSuggester.suggestPlacesForTask(
+            query = "شاحن سامسونج",
+            places = SeedCatalogData.stores
         )
         assertTrue(suggestions.isNotEmpty())
         assertTrue(suggestions.first().store.id == "samsung")

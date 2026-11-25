@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Map
@@ -28,6 +30,8 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +78,7 @@ import com.example.ui.navigation.MoreHubRoute
 import com.example.ui.navigation.NotificationsRoute
 import com.example.ui.navigation.OffersEventsRoute
 import com.example.ui.navigation.StoreDetailRoute
+import com.example.ui.navigation.TasksShoppingRoute
 import com.example.ui.navigation.TripPlannerRoute
 import com.example.ui.navigation.VisitorServicesRoute
 import com.example.ui.screens.AccessScreen
@@ -85,6 +90,7 @@ import com.example.ui.screens.MoreHubScreen
 import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.OffersEventsScreen
 import com.example.ui.screens.StoreDetailScreen
+import com.example.ui.screens.TasksShoppingScreen
 import com.example.ui.screens.TripPlannerScreen
 import com.example.ui.screens.VisitorServicesScreen
 import com.example.ui.theme.ElAbedMallTheme
@@ -165,6 +171,12 @@ fun ElAbedMallApp(
             dest.hasRoute<MoreHubRoute>()
     } ?: true
 
+    val showGlobalTasksFab = currentDest?.let { dest ->
+        !dest.hasRoute<IndoorMapRoute>() &&
+            !dest.hasRoute<TasksShoppingRoute>() &&
+            !dest.hasRoute<ContentManagerRoute>()
+    } ?: true
+
     fun navigateTopLevel(route: Any) {
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) {
@@ -222,6 +234,23 @@ fun ElAbedMallApp(
                 modifier = Modifier.weight(1f),
                 containerColor = Color.White,
                 contentWindowInsets = WindowInsets.safeDrawing,
+                floatingActionButton = {
+                    if (showGlobalTasksFab) {
+                        FloatingActionButton(
+                            onClick = { navController.navigate(TasksShoppingRoute) },
+                            containerColor = ElAbedRoyalBlue,
+                            contentColor = Color.White,
+                            shape = CircleShape,
+                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                            modifier = Modifier.testTag("global_add_task_fab")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "صفحة المهام والمشتريات"
+                            )
+                        }
+                    }
+                },
                 bottomBar = {
                     if (!useRail && showTopLevelNav) {
                         Surface(
@@ -486,10 +515,36 @@ fun ElAbedMallApp(
                             onToggleTripStopVisited = viewModel::toggleTripStopVisited,
                             onRemoveTripStop = viewModel::removeTripStop,
                             onClearVisitedStops = viewModel::clearVisitedTripStops,
-                            onAddShoppingTask = viewModel::addShoppingTask,
+                            onAddShoppingTask = { name, dept ->
+                                viewModel.addShoppingTask(
+                                    itemName = name,
+                                    departmentTag = dept,
+                                    store = places.firstOrNull { it.id == "hypermarket" }
+                                )
+                            },
                             onToggleShoppingTask = viewModel::toggleShoppingTask,
                             onDeleteShoppingTask = viewModel::deleteShoppingTask,
                             onClearCheckedTasks = viewModel::clearCheckedShoppingTasks
+                        )
+                    }
+
+                    composable<TasksShoppingRoute> {
+                        TasksShoppingScreen(
+                            tasks = shoppingTasks,
+                            places = places,
+                            onBack = { navController.popBackStack() },
+                            onAddTask = { itemName, departmentTag, selectedStore ->
+                                viewModel.addShoppingTask(itemName, departmentTag, selectedStore)
+                            },
+                            onToggleTask = viewModel::toggleShoppingTask,
+                            onDeleteTask = viewModel::deleteShoppingTask,
+                            onClearChecked = viewModel::clearCheckedShoppingTasks,
+                            onOpenStoreDetail = { storeId ->
+                                navController.navigate(StoreDetailRoute(storeId = storeId))
+                            },
+                            onOpenIndoorMap = { targetId ->
+                                navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
+                            }
                         )
                     }
 

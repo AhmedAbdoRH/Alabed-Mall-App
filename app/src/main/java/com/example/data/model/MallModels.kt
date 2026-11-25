@@ -134,6 +134,9 @@ data class ShoppingTaskEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val itemName: String,
     val departmentTag: String = "عام",
+    val storeId: String? = null,
+    val storeNameAr: String? = null,
+    val floor: Int? = null,
     val isChecked: Boolean = false,
     val createdAtMillis: Long = System.currentTimeMillis()
 )

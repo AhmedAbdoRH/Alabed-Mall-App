@@ -588,14 +588,23 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.clearVisitedTripStops() }
     }
 
-    fun addShoppingTask(itemName: String, departmentTag: String) {
+    fun addShoppingTask(
+        itemName: String,
+        departmentTag: String,
+        store: StoreEntity? = null
+    ) {
         val trimmed = itemName.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             repository.insertShoppingTask(
                 ShoppingTaskEntity(
                     itemName = trimmed,
-                    departmentTag = departmentTag.trim().ifEmpty { "هايبر ماركت" }
+                    departmentTag = departmentTag.trim().ifEmpty {
+                        store?.category?.labelAr ?: "عام"
+                    },
+                    storeId = store?.id,
+                    storeNameAr = store?.nameAr,
+                    floor = store?.floor
                 )
             )
         }
