@@ -196,7 +196,7 @@ fun DirectoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -256,10 +256,10 @@ fun DirectoryScreen(
                             1.2.dp,
                             if (searchQuery.isNotBlank()) ElAbedRoyalBlue else ElAbedOutline
                         ),
-                        shadowElevation = 2.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(52.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -357,10 +357,10 @@ fun DirectoryScreen(
                                     onClick = { activeTab = tab },
                                     shape = RoundedCornerShape(12.dp),
                                     color = if (selected) ElAbedRoyalBlue else Color.Transparent,
-                                    shadowElevation = if (selected) 2.dp else 0.dp,
+                                    shadowElevation = 0.dp,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(44.dp)
+                                          .height(40.dp)
                                         .testTag("directory_search_tab_${tab.name}")
                                 ) {
                                     Row(
@@ -438,7 +438,7 @@ fun DirectoryScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Body Content Depending on Active Toggle
                 if (activeTab == DirectoryBrowseTab.PRODUCTS) {
