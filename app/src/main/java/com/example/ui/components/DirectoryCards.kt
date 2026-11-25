@@ -44,6 +44,7 @@ import com.example.data.model.OfferEntity
 import com.example.data.model.StoreEntity
 import com.example.data.search.MallProductSuggestion
 import com.example.ui.theme.ElAbedOutline
+import com.example.ui.theme.ElAbedTextSecondary
 import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedRoyalBlueContainer
 import com.example.ui.theme.ElAbedTextPrimary
@@ -62,59 +63,52 @@ fun ProductSuggestionPillCard(
         modifier = modifier
             .minimumInteractiveComponentSize()
             .testTag("directory_product_${product.id}"),
-        shape = RoundedCornerShape(22.dp),
-        color = product.softTintColor,
-        border = BorderStroke(1.2.dp, product.accentColor.copy(alpha = 0.28f)),
-        shadowElevation = 2.dp
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, ElAbedOutline),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Compact rounded-pill logo icon container ("مستطيل دائري صغير")
                 Box(
                     modifier = Modifier
-                        .size(width = 48.dp, height = 36.dp)
+                        .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(product.accentColor),
+                        .background(product.softTintColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = product.icon,
                         contentDescription = product.nameAr,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = product.accentColor,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color.White
-                ) {
-                    Text(
-                        text = product.brandNameAr,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = product.accentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
+                Text(
+                    text = product.brandNameAr,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ElAbedTextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Text(
                 text = product.nameAr,
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontSize = 14.sp,
-                    lineHeight = 19.sp
+                    lineHeight = 20.sp
                 ),
                 fontWeight = FontWeight.Bold,
                 color = ElAbedTextPrimary,
@@ -131,32 +125,32 @@ fun ProductSuggestionPillCard(
                 Text(
                     text = "الدور ${product.floorLabelAr}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
+                    color = ElAbedTextSecondary,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1
                 )
 
                 Surface(
                     onClick = onNavigateMap,
                     shape = RoundedCornerShape(50),
-                    color = product.accentColor
+                    color = ElAbedRoyalBlueContainer
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Navigation,
                             contentDescription = "خريطة",
-                            tint = Color.White,
+                            tint = ElAbedRoyalBlue,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = "خريطة",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = ElAbedRoyalBlue
                         )
                     }
                 }
@@ -183,7 +177,7 @@ fun BrandPlaceDirectoryCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.85f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
