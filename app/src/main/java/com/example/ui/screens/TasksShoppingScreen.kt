@@ -48,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -171,7 +172,7 @@ fun TasksShoppingScreen(
                 item {
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = ElAbedRoyalBlueContainer.copy(alpha = 0.45f),
+                        color = ElAbedRoyalBlueContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -209,7 +210,7 @@ fun TasksShoppingScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            LinearProgressIndicator(
+                            if (total > 0) LinearProgressIndicator(
                                 progress = { progress },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -227,7 +228,7 @@ fun TasksShoppingScreen(
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, ElAbedOutline),
+                        border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
@@ -316,6 +317,10 @@ fun TasksShoppingScreen(
                                         }
                                     },
                                     shape = RoundedCornerShape(16.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = Color(0xFFC3CBDE),
+                                        focusedBorderColor = ElAbedRoyalBlue
+                                    ),
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("tasks_item_input")
@@ -355,10 +360,10 @@ fun TasksShoppingScreen(
                                                 selectedStore = if (isChosen) null else suggestion.store
                                             },
                                             shape = RoundedCornerShape(50),
-                                            color = if (isChosen) ElAbedRoyalBlueContainer else ElAbedSurfaceVariant,
+                                            color = if (isChosen) ElAbedRoyalBlueContainer else Color(0xFFF3F5FA),
                                             border = BorderStroke(
                                                 width = if (isChosen) 1.5.dp else 1.dp,
-                                                color = if (isChosen) ElAbedRoyalBlue else ElAbedOutline
+                                                color = if (isChosen) ElAbedRoyalBlue else Color(0xFFC3CBDE)
                                             ),
                                             modifier = Modifier.testTag("task_place_suggestion_${suggestion.store.id}")
                                         ) {
@@ -421,7 +426,7 @@ fun TasksShoppingScreen(
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = ElAbedRoyalBlue,
                                         selectedLabelColor = Color.White,
-                                        containerColor = ElAbedSurfaceVariant
+                                        containerColor = Color(0xFFEEF1F8)
                                     )
                                 )
                             }
@@ -469,7 +474,7 @@ fun TasksShoppingScreen(
                             colors = CardDefaults.cardColors(
                                 containerColor = if (task.isChecked) ElAbedSurfaceVariant else Color.White
                             ),
-                            border = BorderStroke(1.dp, ElAbedOutline),
+                            border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(
