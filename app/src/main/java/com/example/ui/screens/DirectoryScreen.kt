@@ -268,8 +268,8 @@ fun DirectoryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         DirectorySectionHeader(
                             title = "البراندات والأماكن",
@@ -319,7 +319,7 @@ fun DirectoryScreen(
                                     .weight(1f)
                                     .fillMaxWidth()
                                     .testTag("directory_places_list"),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 items(
                                     items = placeRows,
@@ -327,7 +327,7 @@ fun DirectoryScreen(
                                 ) { rowPlaces ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         rowPlaces.forEach { place ->
                                             CompactBrandPlaceCard(
@@ -362,8 +362,8 @@ fun DirectoryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         DirectorySectionHeader(
                             title = "المنتجات والخدمات",
@@ -414,7 +414,7 @@ fun DirectoryScreen(
                                     .fillMaxWidth()
                                     .testTag("directory_products_grid"),
                                 contentPadding = PaddingValues(bottom = 56.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 items(
                                     items = productRows,
@@ -422,7 +422,7 @@ fun DirectoryScreen(
                                 ) { rowProducts ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         rowProducts.forEach { product ->
                                             ProductSuggestionPillCard(
@@ -527,7 +527,7 @@ private fun DirectorySectionSearchField(
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(36.dp)
     ) {
         Row(
             modifier = Modifier
@@ -626,10 +626,10 @@ private fun DirectorySuggestionChipRow(
                 shape = RoundedCornerShape(10.dp),
                 color = if (selected) selectedContainerColor else Color.White,
                 border = if (selected) null else BorderStroke(1.dp, idleBorderColor),
-                modifier = Modifier.heightIn(min = 32.dp)
+                modifier = Modifier.heightIn(min = 26.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
