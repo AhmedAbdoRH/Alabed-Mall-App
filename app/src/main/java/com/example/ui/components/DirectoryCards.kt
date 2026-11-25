@@ -56,33 +56,34 @@ fun ProductSuggestionPillCard(
     product: MallProductSuggestion,
     onOpenStore: () -> Unit,
     onNavigateMap: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    borderColor: Color = Color(0xFFC3CBDE)
 ) {
     Surface(
         onClick = onOpenStore,
         modifier = modifier
             .minimumInteractiveComponentSize()
             .testTag("directory_product_${product.id}"),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
+        border = BorderStroke(1.dp, borderColor),
         shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(product.softTintColor),
                     contentAlignment = Alignment.Center
                 ) {
@@ -90,7 +91,7 @@ fun ProductSuggestionPillCard(
                         imageVector = product.icon,
                         contentDescription = product.nameAr,
                         tint = product.accentColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
                 Text(
@@ -107,8 +108,8 @@ fun ProductSuggestionPillCard(
             Text(
                 text = product.nameAr,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 ),
                 fontWeight = FontWeight.Bold,
                 color = ElAbedTextPrimary,
@@ -127,22 +128,119 @@ fun ProductSuggestionPillCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = ElAbedTextSecondary,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 Surface(
                     onClick = onNavigateMap,
                     shape = RoundedCornerShape(50),
-                    color = ElAbedRoyalBlueContainer
+                    color = ElAbedRoyalBlueContainer,
+                    modifier = Modifier.testTag("directory_product_map_btn_${product.id}")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Navigation,
                             contentDescription = "خريطة",
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "خريطة",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ElAbedRoyalBlue
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CompactBrandPlaceCard(
+    place: StoreEntity,
+    onOpenStoreDetail: () -> Unit,
+    onNavigateOnMap: () -> Unit,
+    modifier: Modifier = Modifier,
+    borderColor: Color = Color(0xFFC5D2EE)
+) {
+    Surface(
+        onClick = onOpenStoreDetail,
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .testTag("directory_item_${place.id}"),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StoreLogoBadge(store = place, size = 38.dp)
+                Text(
+                    text = place.nameAr,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    color = ElAbedTextPrimary,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = place.floorLabelAr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ElAbedTextSecondary,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Surface(
+                    onClick = onNavigateOnMap,
+                    shape = RoundedCornerShape(50),
+                    color = ElAbedRoyalBlueContainer,
+                    modifier = Modifier.testTag("directory_map_btn_${place.id}")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = "خريطة ${place.nameAr}",
                             tint = ElAbedRoyalBlue,
                             modifier = Modifier.size(12.dp)
                         )
