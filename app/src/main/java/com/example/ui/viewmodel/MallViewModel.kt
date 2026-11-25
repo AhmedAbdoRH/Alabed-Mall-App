@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.MallDatabase
@@ -16,12 +17,16 @@ import com.example.data.model.MallPlaceCategory
 import com.example.data.model.MapMovementMode
 import com.example.data.model.NotificationCategory
 import com.example.data.model.OfferEntity
+import com.example.data.model.PromoBannerConfig
+import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
+import com.example.data.model.TripStopEntity
 import com.example.data.model.VisitorTicketEntity
 import com.example.data.repository.MallRepository
 import com.example.location.LocationStreamEvent
 import com.example.location.MallLocationClient
 import com.example.notifications.MallNotificationHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,7 +37,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import kotlin.math.hypot
+import kotlin.math.roundToInt
+
+data class OrderedTripStop(
+    val stop: TripStopEntity,
+    val orderNumber: Int,
+    val stepDistanceMeters: Int
+)
 
 data class IndoorMapUiState(
     val selectedFloor: Int = 0,
@@ -68,8 +83,40 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
     val tickets: StateFlow<List<VisitorTicketEntity>> = repository.tickets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val tripStops: StateFlow<List<TripStopEntity>> = repository.tripStops
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val orderedTripStops: StateFlow<List<OrderedTripStop>> = tripStops
+        .combine(places) { stops, _ ->
+            sortTripStopsByFloorAndPath(stops)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val shoppingTasks: StateFlow<List<ShoppingTaskEntity>> = repository.shoppingTasks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val promoBanner: StateFlow<PromoBannerConfig> = repository.promoBannerConfig
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PromoBannerConfig())
+
     val notificationPreferences: StateFlow<NotificationPreferences> = repository.notificationPreferences
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationPreferences())
+
+    val interestMatchedOffers: StateFlow<List<OfferEntity>> = combine(
+        offers,
+        places,
+        notificationPreferences
+    ) { offerList, placeList, prefs ->
+        val selected = prefs.selectedInterests
+        if (selected.isEmpty()) {
+            offerList
+        } else {
+            val placeCategoryMap = placeList.associate { it.id to it.categoryName }
+            offerList.sortedByDescending { offer ->
+                val cat = placeCategoryMap[offer.storeId]
+                cat != null && cat in selected
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val unreadNotificationCount: StateFlow<Int> = notifications
         .combine(notificationPreferences) { list, prefs ->
@@ -433,6 +480,14 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setAlertsNotifEnabled(enabled) }
     }
 
+    fun toggleVisitorInterest(category: MallPlaceCategory) {
+        viewModelScope.launch { repository.toggleInterest(category.name) }
+    }
+
+    fun setVisitorInterests(categories: Set<String>) {
+        viewModelScope.launch { repository.setSelectedInterests(categories) }
+    }
+
     fun sendTestNotification(title: String, body: String): Boolean {
         return MallNotificationHelper.showMallNotification(
             context = getApplication(),
@@ -440,6 +495,172 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
             title = title,
             body = body
         )
+    }
+
+    fun sendInterestTestOfferNotification(): Boolean {
+        val prefs = notificationPreferences.value
+        val selected = prefs.selectedInterests
+        val placeMap = places.value.associateBy { it.id }
+        val matchingOffer = offers.value.firstOrNull { offer ->
+            val cat = placeMap[offer.storeId]?.categoryName
+            selected.isEmpty() || (cat != null && cat in selected)
+        }
+        val title = if (matchingOffer != null) {
+            "عرض يناسب اهتماماتك: ${matchingOffer.storeNameAr}"
+        } else {
+            "عروض مول العابد المحدثة"
+        }
+        val body = if (matchingOffer != null) {
+            "${matchingOffer.titleAr} (${matchingOffer.discountBadge}) — كود: ${matchingOffer.couponCode}"
+        } else {
+            "تصفح أحدث العروض والكوبونات في مول العابد بطوخ."
+        }
+        val sent = MallNotificationHelper.showMallNotification(
+            context = getApplication(),
+            notificationId = (System.currentTimeMillis() % 10000).toInt(),
+            title = title,
+            body = body
+        )
+        viewModelScope.launch {
+            repository.addNotification(
+                MallNotificationEntity(
+                    id = "notif_interest_${System.currentTimeMillis()}",
+                    titleAr = title,
+                    bodyAr = body,
+                    categoryName = NotificationCategory.OFFER.name,
+                    timestampLabelAr = "الآن",
+                    linkedTargetId = matchingOffer?.storeId ?: "hypermarket",
+                    linkedType = "STORE",
+                    isRead = false
+                )
+            )
+        }
+        return sent
+    }
+
+    // --- Trip Planner & Hypermarket Shopping List ---
+    fun addStoreToTrip(store: StoreEntity) {
+        viewModelScope.launch {
+            repository.upsertTripStop(
+                TripStopEntity(
+                    id = "store_${store.id}",
+                    storeId = store.id,
+                    offerId = null,
+                    titleAr = store.nameAr,
+                    subtitleAr = "${store.category.labelAr} • ${store.zoneAr}",
+                    badgeAr = if (store.isNewOpening) "جديد" else "",
+                    floor = store.floor,
+                    mapX = store.mapX,
+                    mapY = store.mapY
+                )
+            )
+        }
+    }
+
+    fun addOfferToTrip(offer: OfferEntity) {
+        val store = places.value.firstOrNull { it.id == offer.storeId }
+        viewModelScope.launch {
+            repository.upsertTripStop(
+                TripStopEntity(
+                    id = "offer_${offer.id}",
+                    storeId = offer.storeId,
+                    offerId = offer.id,
+                    titleAr = offer.storeNameAr,
+                    subtitleAr = offer.titleAr,
+                    badgeAr = offer.discountBadge,
+                    floor = store?.floor ?: 0,
+                    mapX = store?.mapX ?: 405f,
+                    mapY = store?.mapY ?: 235f
+                )
+            )
+        }
+    }
+
+    fun toggleTripStopVisited(id: String, visited: Boolean) {
+        viewModelScope.launch { repository.setTripStopVisited(id, visited) }
+    }
+
+    fun removeTripStop(id: String) {
+        viewModelScope.launch { repository.deleteTripStop(id) }
+    }
+
+    fun clearVisitedTripStops() {
+        viewModelScope.launch { repository.clearVisitedTripStops() }
+    }
+
+    fun addShoppingTask(itemName: String, departmentTag: String) {
+        val trimmed = itemName.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            repository.insertShoppingTask(
+                ShoppingTaskEntity(
+                    itemName = trimmed,
+                    departmentTag = departmentTag.trim().ifEmpty { "هايبر ماركت" }
+                )
+            )
+        }
+    }
+
+    fun toggleShoppingTask(id: Long, checked: Boolean) {
+        viewModelScope.launch { repository.setShoppingTaskChecked(id, checked) }
+    }
+
+    fun deleteShoppingTask(id: Long) {
+        viewModelScope.launch { repository.deleteShoppingTask(id) }
+    }
+
+    fun clearCheckedShoppingTasks() {
+        viewModelScope.launch { repository.clearCheckedShoppingTasks() }
+    }
+
+    private fun sortTripStopsByFloorAndPath(stops: List<TripStopEntity>): List<OrderedTripStop> {
+        if (stops.isEmpty()) return emptyList()
+        val unvisited = stops.filter { !it.isVisited }
+        val visited = stops.filter { it.isVisited }
+
+        val ordered = mutableListOf<OrderedTripStop>()
+        var currX = 335f // Gate 1 Main Entrance
+        var currY = 635f
+        var orderCounter = 1
+
+        // Visit Ground Floor (0) first, then First Floor (1), using nearest-neighbor
+        for (floor in listOf(0, 1)) {
+            val remainingOnFloor = unvisited.filter { it.floor == floor }.toMutableList()
+            if (floor == 1 && remainingOnFloor.isNotEmpty()) {
+                // Transition via Central Escalator
+                currX = 495f
+                currY = 455f
+            }
+            while (remainingOnFloor.isNotEmpty()) {
+                val nextIdx = remainingOnFloor.indices.minBy { idx ->
+                    val s = remainingOnFloor[idx]
+                    hypot(s.mapX - currX, s.mapY - currY)
+                }
+                val chosen = remainingOnFloor.removeAt(nextIdx)
+                val distMeters = (hypot(chosen.mapX - currX, chosen.mapY - currY) *
+                    MallFloorPlanGraph.METERS_PER_UNIT).roundToInt().coerceAtLeast(5)
+                ordered.add(
+                    OrderedTripStop(
+                        stop = chosen,
+                        orderNumber = orderCounter++,
+                        stepDistanceMeters = distMeters
+                    )
+                )
+                currX = chosen.mapX
+                currY = chosen.mapY
+            }
+        }
+
+        visited.forEach { done ->
+            ordered.add(
+                OrderedTripStop(
+                    stop = done,
+                    orderNumber = orderCounter++,
+                    stepDistanceMeters = 0
+                )
+            )
+        }
+        return ordered
     }
 
     // --- Visitor Services ---
@@ -509,20 +730,109 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         termsAr: String
     ) {
         viewModelScope.launch {
+            val cleanTitle = titleAr.trim()
+            val cleanBadge = discountBadge.trim().ifEmpty { "عرض خاص" }
+            val cleanCode = couponCode.trim().uppercase().ifEmpty { "ELABED" }
             repository.upsertOffer(
                 OfferEntity(
                     id = "offer_${System.currentTimeMillis()}",
                     storeId = storeId,
                     storeNameAr = storeNameAr,
-                    titleAr = titleAr.trim(),
+                    titleAr = cleanTitle,
                     descriptionAr = descriptionAr.trim(),
-                    discountBadge = discountBadge.trim().ifEmpty { "عرض خاص" },
-                    couponCode = couponCode.trim().uppercase().ifEmpty { "ELABED" },
+                    discountBadge = cleanBadge,
+                    couponCode = cleanCode,
                     validUntilAr = validUntilAr.trim().ifEmpty { "ساري لفترة محدودة" },
                     termsAr = termsAr.trim().ifEmpty { "يسري العرض داخل الفرع بالمول." },
                     isFeatured = true
                 )
             )
+
+            // Trigger personalized offer notification if visitor interests match (or none selected)
+            val prefs = notificationPreferences.value
+            val storeCategory = places.value.firstOrNull { it.id == storeId }?.categoryName
+            val matchesInterest = prefs.selectedInterests.isEmpty() ||
+                (storeCategory != null && storeCategory in prefs.selectedInterests)
+            if (prefs.offersEnabled && matchesInterest) {
+                val notifTitle = "عرض جديد في $storeNameAr ($cleanBadge)"
+                val notifBody = "$cleanTitle — استخدم كود $cleanCode"
+                repository.addNotification(
+                    MallNotificationEntity(
+                        id = "notif_offer_${System.currentTimeMillis()}",
+                        titleAr = notifTitle,
+                        bodyAr = notifBody,
+                        categoryName = NotificationCategory.OFFER.name,
+                        timestampLabelAr = "الآن",
+                        linkedTargetId = storeId,
+                        linkedType = "STORE",
+                        isRead = false
+                    )
+                )
+                MallNotificationHelper.showMallNotification(
+                    context = getApplication(),
+                    notificationId = (System.currentTimeMillis() % 10000).toInt(),
+                    title = notifTitle,
+                    body = notifBody
+                )
+            }
+        }
+    }
+
+    fun savePromoBannerFromAdmin(
+        pickedImageUri: Uri?,
+        presetDrawableKey: String?,
+        titleAr: String,
+        subtitleAr: String,
+        badgeAr: String,
+        linkedTargetId: String,
+        isVisible: Boolean
+    ) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val currentBanner = promoBanner.value
+            val resolvedImagePath = when {
+                pickedImageUri != null -> withContext(Dispatchers.IO) {
+                    copyPickedBannerImage(app, pickedImageUri) ?: currentBanner.imagePathOrKey
+                }
+                !presetDrawableKey.isNullOrBlank() -> presetDrawableKey
+                else -> currentBanner.imagePathOrKey
+            }
+
+            repository.savePromoBanner(
+                PromoBannerConfig(
+                    imagePathOrKey = resolvedImagePath,
+                    titleAr = titleAr.trim().ifEmpty { currentBanner.titleAr },
+                    subtitleAr = subtitleAr.trim().ifEmpty { currentBanner.subtitleAr },
+                    badgeAr = badgeAr.trim().ifEmpty { "عرض ترويجي" },
+                    linkedTargetId = linkedTargetId.ifBlank { "hypermarket" },
+                    isVisible = isVisible
+                )
+            )
+        }
+    }
+
+    fun resetPromoBanner() {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            withContext(Dispatchers.IO) {
+                app.filesDir.listFiles { f -> f.name.startsWith("promo_banner_") }?.forEach { it.delete() }
+            }
+            repository.resetPromoBanner()
+        }
+    }
+
+    private fun copyPickedBannerImage(app: Application, uri: Uri): String? {
+        return try {
+            app.filesDir.listFiles { f -> f.name.startsWith("promo_banner_") }?.forEach { it.delete() }
+            val outFile = File(app.filesDir, "promo_banner_${System.currentTimeMillis()}.jpg")
+            app.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(outFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return null
+            outFile.absolutePath
+        } catch (_: Exception) {
+            null
         }
     }
 

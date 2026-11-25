@@ -150,19 +150,19 @@ fun AccessScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.padding(14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Info,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Text(
-                                            text = "لعرض بلاطات الخريطة الحية داخل التطبيق، أضف مفتاح Google Maps API في لوحة Secrets. يمكنك فتح الاتجاهات مباشرة عبر تطبيق Google Maps أدناه.",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            text = "تعذر تحميل خريطة Google المباشرة حالياً. يمكنك فتح الاتجاهات بدقة مباشرة عبر تطبيق Google Maps أدناه.",
+                                            style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onTertiaryContainer
                                         )
                                     }

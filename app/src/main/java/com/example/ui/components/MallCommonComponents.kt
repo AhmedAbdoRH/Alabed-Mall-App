@@ -1,11 +1,14 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,15 +38,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.model.MallPlaceCategory
+import com.example.data.model.PromoBannerConfig
+import com.example.data.model.StoreEntity
+import com.example.ui.theme.ElAbedOutline
 import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedRoyalBlueContainer
+import com.example.ui.theme.ElAbedTurquoise
+import com.example.ui.theme.ElAbedTurquoiseContainer
+import com.example.ui.theme.ElAbedVibrantGreen
+import com.example.ui.theme.ElAbedVibrantGreenContainer
 import com.example.ui.theme.ElAbedWarmOrange
+import com.example.ui.theme.ElAbedWarmOrangeContainer
 import com.example.ui.theme.StatusOpenContainer
 import com.example.ui.theme.StatusOpenGreen
+import java.io.File
 
 fun categoryIcon(category: MallPlaceCategory): ImageVector {
     return when (category) {
@@ -78,6 +95,130 @@ fun CategoryBadgeIcon(
             tint = contentColor,
             modifier = Modifier.size(22.dp)
         )
+    }
+}
+
+@Composable
+fun StoreLogoBadge(
+    store: StoreEntity,
+    modifier: Modifier = Modifier,
+    size: Dp = 46.dp
+) {
+    val usesMallLogo = store.id in setOf(
+        "hypermarket", "elabed_cafe", "furniture_home", "pingo_toys",
+        "fountain_plaza", "customer_service", "gate_1"
+    )
+    if (usesMallLogo) {
+        Surface(
+            modifier = modifier.size(size),
+            shape = RoundedCornerShape(12.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, ElAbedOutline)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.logo_elabed_mall),
+                contentDescription = "شعار ${store.nameAr}",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp)
+            )
+        }
+    } else {
+        val (bgColor, fgColor) = when (store.category) {
+            MallPlaceCategory.ELECTRONICS -> ElAbedRoyalBlueContainer to ElAbedRoyalBlue
+            MallPlaceCategory.DINING -> ElAbedWarmOrangeContainer to Color(0xFF9C4B00)
+            MallPlaceCategory.ENTERTAINMENT -> ElAbedVibrantGreenContainer to ElAbedVibrantGreen
+            MallPlaceCategory.FASHION -> Color(0xFFF3E5F5) to Color(0xFF6A1B9A)
+            MallPlaceCategory.SERVICES -> ElAbedTurquoiseContainer to Color(0xFF005B52)
+            else -> ElAbedRoyalBlueContainer to ElAbedRoyalBlue
+        }
+        val brandMonogram = when (store.id) {
+            "kfc_toukh" -> "KFC"
+            "samsung" -> "SAM"
+            "tecno_store" -> "TEC"
+            "vodafone" -> "VF"
+            "banque_misr" -> "BM"
+            "alex_bank" -> "AB"
+            "abk_atm" -> "ABK"
+            "aaib_atm" -> "AAIB"
+            "faisal_bank" -> "FIB"
+            "banque_du_caire" -> "BDC"
+            "pizza_primo" -> "PP"
+            "tutu_kids" -> "TK"
+            else -> null
+        }
+        Surface(
+            modifier = modifier.size(size),
+            shape = RoundedCornerShape(12.dp),
+            color = bgColor,
+            border = BorderStroke(1.dp, fgColor.copy(alpha = 0.22f))
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                if (brandMonogram != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = categoryIcon(store.category),
+                            contentDescription = store.nameAr,
+                            tint = fgColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = brandMonogram,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = fgColor
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = categoryIcon(store.category),
+                        contentDescription = store.nameAr,
+                        tint = fgColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PromoBannerImage(
+    imagePathOrKey: String,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val drawableRes = when (imagePathOrKey) {
+        PromoBannerConfig.DEFAULT_DRAWABLE_HYPERMARKET -> R.drawable.img_hypermarket_banner
+        PromoBannerConfig.DEFAULT_DRAWABLE_EVENTS -> R.drawable.img_events_banner
+        PromoBannerConfig.DEFAULT_DRAWABLE_HERO -> R.drawable.img_mall_hero
+        else -> null
+    }
+    if (drawableRes != null) {
+        Image(
+            painter = painterResource(id = drawableRes),
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    } else {
+        val file = File(imagePathOrKey)
+        if (file.exists()) {
+            AsyncImage(
+                model = file,
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                modifier = modifier
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.img_hypermarket_banner),
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                modifier = modifier
+            )
+        }
     }
 }
 

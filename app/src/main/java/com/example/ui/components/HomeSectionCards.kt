@@ -23,18 +23,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -85,6 +88,9 @@ fun HomeOfferTicketCard(
     index: Int,
     onOpenStoreDetail: () -> Unit,
     onOpenMapRoute: () -> Unit,
+    isInterestMatch: Boolean = false,
+    onShareOffer: () -> Unit = {},
+    onAddToTrip: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     @Suppress("DEPRECATION")
@@ -173,23 +179,44 @@ fun HomeOfferTicketCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Storefront,
-                        contentDescription = null,
-                        tint = ElAbedRoyalBlue,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        text = offer.storeNameAr,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = ElAbedRoyalBlue,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Storefront,
+                            contentDescription = null,
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = offer.storeNameAr,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = ElAbedRoyalBlue,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (isInterestMatch) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = ElAbedRoyalBlueContainer
+                        ) {
+                            Text(
+                                text = "يناسب اهتمامك",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ElAbedRoyalBlue,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
 
                 Text(
@@ -230,11 +257,11 @@ fun HomeOfferTicketCard(
                 )
             }
 
-            // Bottom Coupon Code + Route CTA
+            // Bottom Coupon Code + Share/Trip + Route CTA
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 14.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -251,9 +278,9 @@ fun HomeOfferTicketCard(
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
@@ -263,33 +290,61 @@ fun HomeOfferTicketCard(
                         )
                         Text(
                             text = if (copied) "تم النسخ ✓" else offer.couponCode,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (copied) ElAbedVibrantGreen else OnElAbedWarmOrangeContainer
+                            color = if (copied) ElAbedVibrantGreen else OnElAbedWarmOrangeContainer,
+                            maxLines = 1
                         )
                     }
                 }
 
-                FilledTonalButton(
-                    onClick = onOpenMapRoute,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = ElAbedRoyalBlueContainer,
-                        contentColor = OnElAbedRoyalBlueContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Navigation,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "الموقع",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    IconButton(
+                        onClick = onAddToTrip,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.BookmarkAdd,
+                            contentDescription = "أضف لقائمة المشوار",
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onShareOffer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "مشاركة العرض",
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = onOpenMapRoute,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = ElAbedRoyalBlueContainer,
+                            contentColor = OnElAbedRoyalBlueContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "الموقع",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -603,11 +658,13 @@ fun HomeFeaturedStoreCard(
     store: StoreEntity,
     onOpenDetails: () -> Unit,
     onOpenMapRoute: () -> Unit,
+    onShareStore: () -> Unit = {},
+    onAddToTrip: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .width(226.dp)
+            .width(236.dp)
             .clickable(onClick = onOpenDetails),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -626,7 +683,7 @@ fun HomeFeaturedStoreCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CategoryBadgeIcon(category = store.category)
+                    StoreLogoBadge(store = store)
                     FloorPill(floor = store.floor)
                 }
 
@@ -651,26 +708,36 @@ fun HomeFeaturedStoreCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(ElAbedSurfaceVariant)
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(ElAbedVibrantGreen)
-                    )
-                    Text(
-                        text = "التفاصيل",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = ElAbedRoyalBlue
-                    )
+                    IconButton(
+                        onClick = onAddToTrip,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.BookmarkAdd,
+                            contentDescription = "أضف لقائمة المشوار",
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onShareStore,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "مشاركة المحل",
+                            tint = ElAbedRoyalBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 Surface(
@@ -679,19 +746,19 @@ fun HomeFeaturedStoreCard(
                     color = ElAbedRoyalBlueContainer
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Navigation,
                             contentDescription = "اذهب على الخريطة",
                             tint = ElAbedRoyalBlue,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                         Text(
                             text = "مسار",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = ElAbedRoyalBlue
                         )

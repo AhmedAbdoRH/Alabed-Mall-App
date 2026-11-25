@@ -6,7 +6,11 @@ import kotlinx.serialization.Serializable
 object HomeRoute
 
 @Serializable
-data class DirectoryRoute(val initialCategory: String? = null)
+data class DirectoryRoute(
+    val initialCategory: String? = null,
+    val initialQuery: String? = null,
+    val initialSearchTab: String? = null
+)
 
 @Serializable
 data class StoreDetailRoute(val storeId: String)
@@ -31,3 +35,6 @@ object VisitorServicesRoute
 
 @Serializable
 object ContentManagerRoute
+
+@Serializable
+object TripPlannerRoute

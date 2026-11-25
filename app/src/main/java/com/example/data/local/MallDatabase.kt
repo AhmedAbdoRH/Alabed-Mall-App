@@ -7,7 +7,9 @@ import androidx.room.RoomDatabase
 import com.example.data.model.EventEntity
 import com.example.data.model.MallNotificationEntity
 import com.example.data.model.OfferEntity
+import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
+import com.example.data.model.TripStopEntity
 import com.example.data.model.VisitorTicketEntity
 
 @Database(
@@ -16,9 +18,11 @@ import com.example.data.model.VisitorTicketEntity
         OfferEntity::class,
         EventEntity::class,
         MallNotificationEntity::class,
-        VisitorTicketEntity::class
+        VisitorTicketEntity::class,
+        TripStopEntity::class,
+        ShoppingTaskEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class MallDatabase : RoomDatabase() {

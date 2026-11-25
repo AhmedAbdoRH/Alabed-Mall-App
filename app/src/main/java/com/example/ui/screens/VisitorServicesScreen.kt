@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +56,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.StoreEntity
 import com.example.data.model.VisitorTicketEntity
+import com.example.ui.components.CategoryBadgeIcon
 import com.example.ui.components.FloorPill
+import com.example.ui.theme.ElAbedRoyalBlue
+import com.example.ui.theme.ElAbedRoyalBlueContainer
+import com.example.ui.theme.ElAbedSurfaceVariant
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +93,7 @@ fun VisitorServicesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("خدمة الزوار") },
+                title = { Text("خدمة الزوار والاستعلامات", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("visitor_services_back")) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
@@ -113,27 +119,31 @@ fun VisitorServicesScreen(
                 // Direct Contact Card
                 item {
                     Card(
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = ElAbedRoyalBlueContainer.copy(alpha = 0.35f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(18.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "مركز خدمة عملاء مول العابد",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    color = ElAbedRoyalBlue,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "يومياً ١٠:٠٠ ص - ١٢:٠٠ ص • 0132460105",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    text = "متاح يومياً ١٠:٠٠ ص - ١٢:٠٠ ص • 0132460105",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                             Button(
@@ -141,17 +151,17 @@ fun VisitorServicesScreen(
                                     context.startActivity(
                                         Intent(Intent.ACTION_DIAL, Uri.parse("tel:0132460105"))
                                     )
-                                }
+                                },
+                                modifier = Modifier.height(48.dp)
                             ) {
                                 Icon(Icons.Filled.Call, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("اتصال")
+                                Text("اتصال", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
-                // Essential Facilities & Map Links
                 item {
                     Text(
                         text = "الخدمات والمرافق الأساسية داخل المول",
@@ -162,54 +172,65 @@ fun VisitorServicesScreen(
 
                 items(essentialServices, key = { it.id }) { svc ->
                     Card(
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = ElAbedSurfaceVariant.copy(alpha = 0.5f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            CategoryBadgeIcon(category = svc.category)
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                Text(
+                                    text = svc.nameAr,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(svc.nameAr, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    FloorPill(floor = svc.floor)
+                                    FloorPill(floor = svc.floor, modifier = Modifier.wrapContentWidth())
+                                    Text(
+                                        text = svc.zoneAr,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Text(
-                                    text = svc.zoneAr,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                            OutlinedButton(onClick = { onOpenIndoorMap(svc.id) }) {
-                                Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                            OutlinedButton(
+                                onClick = { onOpenIndoorMap(svc.id) },
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .wrapContentWidth()
+                            ) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("الموقع", style = MaterialTheme.typography.labelSmall)
+                                Text("الموقع", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
-                // Inquiry / Note / Report Form
                 item {
                     Card(
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Text(
-                                text = "إرسال استفسار أو ملاحظة أو بلاغ",
+                                text = "إرسال استفسار أو ملاحظة أو بلاغ لإدارة المول",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -219,7 +240,11 @@ fun VisitorServicesScreen(
                                     FilterChip(
                                         selected = ticketType == type,
                                         onClick = { ticketType = type },
-                                        label = { Text(type) }
+                                        label = { Text(type, style = MaterialTheme.typography.labelLarge) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = ElAbedRoyalBlueContainer,
+                                            selectedLabelColor = ElAbedRoyalBlue
+                                        )
                                     )
                                 }
                             }
@@ -227,7 +252,7 @@ fun VisitorServicesScreen(
                             OutlinedTextField(
                                 value = visitorName,
                                 onValueChange = { visitorName = it },
-                                label = { Text("الاسم (اختياري)") },
+                                label = { Text("الاسم (اختياري)", style = MaterialTheme.typography.bodyMedium) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -235,7 +260,7 @@ fun VisitorServicesScreen(
                             OutlinedTextField(
                                 value = visitorPhone,
                                 onValueChange = { visitorPhone = it },
-                                label = { Text("رقم الهاتف للتواصل (اختياري)") },
+                                label = { Text("رقم الهاتف للتواصل (اختياري)", style = MaterialTheme.typography.bodyMedium) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -243,7 +268,7 @@ fun VisitorServicesScreen(
                             OutlinedTextField(
                                 value = message,
                                 onValueChange = { message = it },
-                                label = { Text("تفاصيل الرسالة *") },
+                                label = { Text("تفاصيل الرسالة *", style = MaterialTheme.typography.bodyMedium) },
                                 minLines = 3,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -254,7 +279,7 @@ fun VisitorServicesScreen(
                                 onClick = {
                                     if (message.trim().length < 5) {
                                         scope.launch {
-                                            snackbarHostState.showSnackbar("يرجى كتابة تفاصيل الرسالة أولاً")
+                                            snackbarHostState.showSnackbar("يرجى كتابة تفاصيل الرسالة أولاً (5 أحرف على الأقل)")
                                         }
                                     } else {
                                         onSubmitTicket(ticketType, visitorName, visitorPhone, message)
@@ -273,7 +298,7 @@ fun VisitorServicesScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("إرسال لإدارة المول")
+                                Text("إرسال لإدارة المول", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -283,37 +308,39 @@ fun VisitorServicesScreen(
                     item {
                         Text(
                             text = "سجل رسائلك المرسلة (${tickets.size})",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     items(tickets, key = { it.id }) { ticket ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(14.dp),
+                            color = ElAbedSurfaceVariant.copy(alpha = 0.5f),
                             tonalElevation = 1.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "${ticket.ticketType} • ${ticket.visitorName}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
+                                        text = "${ticket.ticketType} • ${ticket.visitorName.ifBlank { "زائر" }}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ElAbedRoyalBlue
                                     )
                                     Text(
                                         text = ticket.statusLabel,
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                Text(text = ticket.message, style = MaterialTheme.typography.bodyMedium)
+                                Text(text = ticket.message, style = MaterialTheme.typography.bodyLarge)
                             }
                         }
                     }

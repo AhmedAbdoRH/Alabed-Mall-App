@@ -8,7 +8,10 @@ import com.example.data.model.EventEntity
 import com.example.data.model.MallNotificationEntity
 import com.example.data.model.MapMovementMode
 import com.example.data.model.OfferEntity
+import com.example.data.model.PromoBannerConfig
+import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
+import com.example.data.model.TripStopEntity
 import com.example.data.model.VisitorTicketEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -21,8 +24,11 @@ class MallRepository(
     val events: Flow<List<EventEntity>> = dao.observeAllEvents()
     val notifications: Flow<List<MallNotificationEntity>> = dao.observeAllNotifications()
     val tickets: Flow<List<VisitorTicketEntity>> = dao.observeAllTickets()
+    val tripStops: Flow<List<TripStopEntity>> = dao.observeTripStops()
+    val shoppingTasks: Flow<List<ShoppingTaskEntity>> = dao.observeShoppingTasks()
     val notificationPreferences: Flow<NotificationPreferences> = prefsManager.notificationPreferences
     val defaultMapMode: Flow<MapMovementMode> = prefsManager.defaultMapMode
+    val promoBannerConfig: Flow<PromoBannerConfig> = prefsManager.promoBannerConfig
 
     fun observePlace(id: String): Flow<StoreEntity?> = dao.observePlaceById(id)
     fun observeOffersForStore(storeId: String): Flow<List<OfferEntity>> = dao.observeOffersForStore(storeId)
@@ -51,9 +57,26 @@ class MallRepository(
 
     suspend fun submitVisitorTicket(ticket: VisitorTicketEntity) = dao.insertTicket(ticket)
 
+    // Trip Planner
+    suspend fun upsertTripStop(stop: TripStopEntity) = dao.upsertTripStop(stop)
+    suspend fun setTripStopVisited(id: String, visited: Boolean) = dao.setTripStopVisited(id, visited)
+    suspend fun deleteTripStop(id: String) = dao.deleteTripStopById(id)
+    suspend fun clearVisitedTripStops() = dao.clearVisitedTripStops()
+
+    // Shopping Tasks
+    suspend fun insertShoppingTask(task: ShoppingTaskEntity) = dao.insertShoppingTask(task)
+    suspend fun setShoppingTaskChecked(id: Long, checked: Boolean) = dao.setShoppingTaskChecked(id, checked)
+    suspend fun deleteShoppingTask(id: Long) = dao.deleteShoppingTaskById(id)
+    suspend fun clearCheckedShoppingTasks() = dao.clearCheckedShoppingTasks()
+
+    // Preferences & Interests & Promo Banner
     suspend fun setOffersNotifEnabled(enabled: Boolean) = prefsManager.setOffersEnabled(enabled)
     suspend fun setOpeningsNotifEnabled(enabled: Boolean) = prefsManager.setOpeningsEnabled(enabled)
     suspend fun setEventsNotifEnabled(enabled: Boolean) = prefsManager.setEventsEnabled(enabled)
     suspend fun setAlertsNotifEnabled(enabled: Boolean) = prefsManager.setAlertsEnabled(enabled)
+    suspend fun toggleInterest(categoryName: String) = prefsManager.toggleInterest(categoryName)
+    suspend fun setSelectedInterests(interests: Set<String>) = prefsManager.setSelectedInterests(interests)
     suspend fun setDefaultMapMode(mode: MapMovementMode) = prefsManager.setDefaultMapMode(mode)
+    suspend fun savePromoBanner(config: PromoBannerConfig) = prefsManager.savePromoBanner(config)
+    suspend fun resetPromoBanner() = prefsManager.resetPromoBanner()
 }

@@ -7,7 +7,9 @@ import androidx.room.Query
 import com.example.data.model.EventEntity
 import com.example.data.model.MallNotificationEntity
 import com.example.data.model.OfferEntity
+import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
+import com.example.data.model.TripStopEntity
 import com.example.data.model.VisitorTicketEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -78,4 +80,36 @@ interface MallDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTicket(ticket: VisitorTicketEntity)
+
+    // Trip Planner Stops
+    @Query("SELECT * FROM trip_stops ORDER BY isVisited ASC, floor ASC, addedAtMillis ASC")
+    fun observeTripStops(): Flow<List<TripStopEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTripStop(stop: TripStopEntity)
+
+    @Query("UPDATE trip_stops SET isVisited = :visited WHERE id = :id")
+    suspend fun setTripStopVisited(id: String, visited: Boolean)
+
+    @Query("DELETE FROM trip_stops WHERE id = :id")
+    suspend fun deleteTripStopById(id: String)
+
+    @Query("DELETE FROM trip_stops WHERE isVisited = 1")
+    suspend fun clearVisitedTripStops()
+
+    // Hypermarket Shopping Tasks
+    @Query("SELECT * FROM shopping_tasks ORDER BY isChecked ASC, createdAtMillis DESC")
+    fun observeShoppingTasks(): Flow<List<ShoppingTaskEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertShoppingTask(task: ShoppingTaskEntity)
+
+    @Query("UPDATE shopping_tasks SET isChecked = :checked WHERE id = :id")
+    suspend fun setShoppingTaskChecked(id: Long, checked: Boolean)
+
+    @Query("DELETE FROM shopping_tasks WHERE id = :id")
+    suspend fun deleteShoppingTaskById(id: Long)
+
+    @Query("DELETE FROM shopping_tasks WHERE isChecked = 1")
+    suspend fun clearCheckedShoppingTasks()
 }

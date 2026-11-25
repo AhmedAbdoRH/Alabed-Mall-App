@@ -22,9 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -60,6 +64,9 @@ import com.example.R
 import com.example.data.model.EventEntity
 import com.example.data.model.OfferEntity
 import com.example.ui.components.FloorPill
+import com.example.ui.theme.ElAbedVibrantGreen
+import com.example.ui.theme.ElAbedVibrantGreenContainer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -69,12 +76,22 @@ fun OffersEventsScreen(
     initialTab: Int = 0,
     onOpenStoreDetail: (String) -> Unit,
     onOpenIndoorMap: (String) -> Unit,
+    onShareOffer: (OfferEntity) -> Unit = {},
+    onAddOfferToTrip: (OfferEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 1)) }
+    var copiedOfferId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    androidx.compose.runtime.LaunchedEffect(copiedOfferId) {
+        if (copiedOfferId != null) {
+            delay(1800)
+            copiedOfferId = null
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -185,37 +202,82 @@ fun OffersEventsScreen(
                                     )
 
                                     // Coupon Code Box
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant
+                                     val isCopied = copiedOfferId == offer.id
+                                     Surface(
+                                         shape = RoundedCornerShape(12.dp),
+                                         color = if (isCopied) ElAbedVibrantGreenContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant
+                                     ) {
+                                         Row(
+                                             modifier = Modifier
+                                                 .fillMaxWidth()
+                                                 .padding(horizontal = 14.dp, vertical = 8.dp),
+                                             horizontalArrangement = Arrangement.SpaceBetween,
+                                             verticalAlignment = Alignment.CenterVertically
+                                         ) {
+                                             Text(
+                                                 text = "كوبون: ${offer.couponCode}",
+                                                 style = MaterialTheme.typography.titleSmall,
+                                                 fontWeight = FontWeight.Bold,
+                                                 color = if (isCopied) ElAbedVibrantGreen else MaterialTheme.colorScheme.primary
+                                             )
+                                             Surface(
+                                                 onClick = {
+                                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                     clipboard.setPrimaryClip(ClipData.newPlainText("Coupon", offer.couponCode))
+                                                     copiedOfferId = offer.id
+                                                     scope.launch {
+                                                         snackbarHostState.showSnackbar("تم نسخ الكوبون ${offer.couponCode} بنجاح")
+                                                     }
+                                                 },
+                                                 shape = RoundedCornerShape(8.dp),
+                                                 color = if (isCopied) ElAbedVibrantGreen else MaterialTheme.colorScheme.primary
+                                             ) {
+                                                 Row(
+                                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                     verticalAlignment = Alignment.CenterVertically,
+                                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                 ) {
+                                                     Icon(
+                                                         imageVector = if (isCopied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                                                         contentDescription = "نسخ الكوبون",
+                                                         tint = Color.White,
+                                                         modifier = Modifier.size(14.dp)
+                                                     )
+                                                     Text(
+                                                         text = if (isCopied) "تم النسخ ✓" else "نسخ الكود",
+                                                         style = MaterialTheme.typography.labelSmall,
+                                                         fontWeight = FontWeight.Bold,
+                                                         color = Color.White
+                                                     )
+                                                 }
+                                             }
+                                         }
+                                     }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
+                                        OutlinedButton(
+                                            onClick = { onOpenStoreDetail(offer.storeId) },
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                                .weight(1f)
+                                                .height(48.dp)
                                         ) {
-                                            Text(
-                                                text = "كوبون: ${offer.couponCode}",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                            IconButton(
-                                                onClick = {
-                                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                    clipboard.setPrimaryClip(ClipData.newPlainText("Coupon", offer.couponCode))
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("تم نسخ الكوبون ${offer.couponCode}")
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.ContentCopy,
-                                                    contentDescription = "نسخ الكوبون"
-                                                )
-                                            }
+                                            Icon(Icons.Filled.Storefront, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("المحل", style = MaterialTheme.typography.labelLarge)
+                                        }
+                                        FilledTonalButton(
+                                            onClick = { onOpenIndoorMap(offer.storeId) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
+                                        ) {
+                                            Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("الخريطة", style = MaterialTheme.typography.labelLarge)
                                         }
                                     }
 
@@ -224,20 +286,31 @@ fun OffersEventsScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         OutlinedButton(
-                                            onClick = { onOpenStoreDetail(offer.storeId) },
-                                            modifier = Modifier.weight(1f)
+                                            onClick = {
+                                                onAddOfferToTrip(offer)
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("تمت إضافة العرض لقائمة المشوار")
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
+                                                .testTag("offer_trip_btn_${offer.id}")
                                         ) {
-                                            Icon(Icons.Filled.Storefront, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Filled.BookmarkAdd, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("المحل")
+                                            Text("أضف للمشوار", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         }
                                         FilledTonalButton(
-                                            onClick = { onOpenIndoorMap(offer.storeId) },
-                                            modifier = Modifier.weight(1f)
+                                            onClick = { onShareOffer(offer) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
+                                                .testTag("offer_share_btn_${offer.id}")
                                         ) {
-                                            Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("على الخريطة")
+                                            Text("مشاركة بصورة", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }

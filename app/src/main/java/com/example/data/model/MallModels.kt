@@ -14,7 +14,12 @@ enum class MallPlaceCategory(
     DINING("مطاعم وكافيهات"),
     ENTERTAINMENT("ترفيه وأطفال"),
     SERVICES("خدمات مالية وصحية"),
-    FACILITY("مرافق وبوابات", isServiceOnly = true)
+    FACILITY("مرافق وبوابات", isServiceOnly = true);
+
+    companion object {
+        val interestCategories: List<MallPlaceCategory>
+            get() = entries.filter { !it.isServiceOnly }
+    }
 }
 
 @Entity(tableName = "stores")
@@ -105,3 +110,45 @@ data class VisitorTicketEntity(
     val createdAtMillis: Long = System.currentTimeMillis(),
     val statusLabel: String = "تم الاستلام"
 )
+
+@Entity(tableName = "trip_stops")
+data class TripStopEntity(
+    @PrimaryKey val id: String, // e.g., "store_<storeId>" or "offer_<offerId>"
+    val storeId: String,
+    val offerId: String? = null,
+    val titleAr: String,
+    val subtitleAr: String,
+    val badgeAr: String = "",
+    val floor: Int,
+    val mapX: Float,
+    val mapY: Float,
+    val isVisited: Boolean = false,
+    val addedAtMillis: Long = System.currentTimeMillis()
+) {
+    val floorLabelAr: String
+        get() = if (floor == 0) "الدور الأرضي" else "الدور الأول"
+}
+
+@Entity(tableName = "shopping_tasks")
+data class ShoppingTaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val itemName: String,
+    val departmentTag: String = "عام",
+    val isChecked: Boolean = false,
+    val createdAtMillis: Long = System.currentTimeMillis()
+)
+
+data class PromoBannerConfig(
+    val imagePathOrKey: String = DEFAULT_DRAWABLE_HYPERMARKET,
+    val titleAr: String = "عروض الأسبوع في مول العابد",
+    val subtitleAr: String = "خصومات حصرية على الهايبر ماركت والمطاعم والأزياء — تصفح العروض الآن",
+    val badgeAr: String = "عرض ترويجي",
+    val linkedTargetId: String = "hypermarket",
+    val isVisible: Boolean = true
+) {
+    companion object {
+        const val DEFAULT_DRAWABLE_HYPERMARKET = "drawable:img_hypermarket_banner"
+        const val DEFAULT_DRAWABLE_EVENTS = "drawable:img_events_banner"
+        const val DEFAULT_DRAWABLE_HERO = "drawable:img_mall_hero"
+    }
+}

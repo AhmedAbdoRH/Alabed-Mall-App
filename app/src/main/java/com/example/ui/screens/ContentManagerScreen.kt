@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,14 +15,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,13 +35,15 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -47,14 +56,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.data.model.EventEntity
 import com.example.data.model.MallPlaceCategory
 import com.example.data.model.NotificationCategory
 import com.example.data.model.OfferEntity
+import com.example.data.model.PromoBannerConfig
 import com.example.data.model.StoreEntity
+import com.example.ui.components.PromoBannerImage
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +77,7 @@ fun ContentManagerScreen(
     places: List<StoreEntity>,
     offers: List<OfferEntity>,
     events: List<EventEntity>,
+    promoBanner: PromoBannerConfig = PromoBannerConfig(),
     onBack: () -> Unit,
     onSaveStore: (
         id: String?,
@@ -105,6 +120,16 @@ fun ContentManagerScreen(
         category: NotificationCategory,
         linkedTargetId: String?
     ) -> Unit,
+    onSavePromoBanner: (
+        pickedImageUri: Uri?,
+        presetDrawableKey: String?,
+        titleAr: String,
+        subtitleAr: String,
+        badgeAr: String,
+        linkedTargetId: String,
+        isVisible: Boolean
+    ) -> Unit = { _, _, _, _, _, _, _ -> },
+    onResetPromoBanner: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -137,11 +162,20 @@ fun ContentManagerScreen(
                     .fillMaxSize()
                     .widthIn(max = 840.dp)
             ) {
-                TabRow(selectedTabIndex = selectedTab) {
+                ScrollableTabRow(
+                    selectedTabIndex = selectedTab,
+                    edgePadding = 12.dp
+                ) {
                     Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("المحلات") })
                     Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("العروض") })
                     Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }, text = { Text("الفعاليات") })
                     Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }, text = { Text("الإشعارات") })
+                    Tab(
+                        selected = selectedTab == 4,
+                        onClick = { selectedTab = 4 },
+                        text = { Text("البنر الترويجي") },
+                        modifier = Modifier.testTag("cms_tab_promo_banner")
+                    )
                 }
 
                 when (selectedTab) {
@@ -158,7 +192,7 @@ fun ContentManagerScreen(
                         offers = offers,
                         onAddOffer = { sId, sName, title, desc, badge, code, valid, terms ->
                             onAddOffer(sId, sName, title, desc, badge, code, valid, terms)
-                            scope.launch { snackbarHostState.showSnackbar("تم نشر العرض الجديد") }
+                            scope.launch { snackbarHostState.showSnackbar("تم نشر العرض الجديد وإرسال الإشعار للمهتمين") }
                         }
                     )
                     2 -> EventCmsTab(
@@ -169,11 +203,23 @@ fun ContentManagerScreen(
                             scope.launch { snackbarHostState.showSnackbar("تم نشر الفعالية بنجاح") }
                         }
                     )
-                    else -> NotificationCmsTab(
+                    3 -> NotificationCmsTab(
                         places = places,
                         onBroadcast = { title, body, cat, targetId ->
                             onBroadcastNotification(title, body, cat, targetId)
                             scope.launch { snackbarHostState.showSnackbar("تم إرسال الإشعار للزوار") }
+                        }
+                    )
+                    else -> PromoBannerCmsTab(
+                        places = places,
+                        currentBanner = promoBanner,
+                        onSaveBanner = { uri, presetKey, title, subtitle, badge, targetId, visible ->
+                            onSavePromoBanner(uri, presetKey, title, subtitle, badge, targetId, visible)
+                            scope.launch { snackbarHostState.showSnackbar("تم تحديث الصورة الترويجية في الرئيسية") }
+                        },
+                        onResetBanner = {
+                            onResetPromoBanner()
+                            scope.launch { snackbarHostState.showSnackbar("تمت استعادة البنر الافتراضي") }
                         }
                     )
                 }
@@ -467,6 +513,189 @@ private fun NotificationCmsTab(
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         Text("إرسال الإشعار الآن")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromoBannerCmsTab(
+    places: List<StoreEntity>,
+    currentBanner: PromoBannerConfig,
+    onSaveBanner: (
+        pickedImageUri: Uri?,
+        presetDrawableKey: String?,
+        titleAr: String,
+        subtitleAr: String,
+        badgeAr: String,
+        linkedTargetId: String,
+        isVisible: Boolean
+    ) -> Unit,
+    onResetBanner: () -> Unit
+) {
+    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var presetKey by remember(currentBanner.imagePathOrKey) {
+        mutableStateOf(
+            if (currentBanner.imagePathOrKey.startsWith("drawable:")) currentBanner.imagePathOrKey else null
+        )
+    }
+    var title by remember(currentBanner.titleAr) { mutableStateOf(currentBanner.titleAr) }
+    var subtitle by remember(currentBanner.subtitleAr) { mutableStateOf(currentBanner.subtitleAr) }
+    var badge by remember(currentBanner.badgeAr) { mutableStateOf(currentBanner.badgeAr) }
+    var linkedTargetId by remember(currentBanner.linkedTargetId) { mutableStateOf(currentBanner.linkedTargetId) }
+    var isVisible by remember(currentBanner.isVisible) { mutableStateOf(currentBanner.isVisible) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            pickedUri = uri
+            presetKey = null
+        }
+    }
+
+    val presets = listOf(
+        PromoBannerConfig.DEFAULT_DRAWABLE_HYPERMARKET to "عروض الهايبر",
+        PromoBannerConfig.DEFAULT_DRAWABLE_EVENTS to "ساحة الفعاليات",
+        PromoBannerConfig.DEFAULT_DRAWABLE_HERO to "واجهة المول"
+    )
+
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "تحكم بالصورة الترويجية في الرئيسية",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                    ) {
+                        if (pickedUri != null) {
+                            AsyncImage(
+                                model = pickedUri,
+                                contentDescription = "معاينة الصورة المختارة",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            PromoBannerImage(
+                                imagePathOrKey = presetKey ?: currentBanner.imagePathOrKey,
+                                contentDescription = "معاينة البنر الحالي",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("cms_pick_banner_image_button")
+                    ) {
+                        Icon(Icons.Filled.Image, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("اختيار صورة من معرض الجهاز", fontWeight = FontWeight.Bold)
+                    }
+
+                    Text("أو اختر من خلفيات المول الجاهزة:", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(presets) { (key, label) ->
+                            FilterChip(
+                                selected = pickedUri == null && (presetKey == key || (presetKey == null && currentBanner.imagePathOrKey == key)),
+                                onClick = {
+                                    pickedUri = null
+                                    presetKey = key
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = badge,
+                        onValueChange = { badge = it },
+                        label = { Text("الشارة الترويجية (مثال: عرض الأسبوع)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("عنوان البنر الترويجي") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = subtitle,
+                        onValueChange = { subtitle = it },
+                        label = { Text("الوصف المختصر") },
+                        minLines = 2,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text("توجيه عند الضغط على البنر:", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(places.filter { !it.isServiceFacility }.take(8), key = { it.id }) { place ->
+                            FilterChip(
+                                selected = linkedTargetId == place.id,
+                                onClick = { linkedTargetId = place.id },
+                                label = { Text(place.nameAr) }
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("إظهار البنر للزوار في الرئيسية", style = MaterialTheme.typography.bodyLarge)
+                        Switch(checked = isVisible, onCheckedChange = { isVisible = it })
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onSaveBanner(pickedUri, presetKey, title, subtitle, badge, linkedTargetId, isVisible)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .testTag("cms_save_banner_button")
+                        ) {
+                            Text("حفظ ونشر البنر", fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                pickedUri = null
+                                onResetBanner()
+                            },
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Text("استعادة الافتراضي")
+                        }
                     }
                 }
             }

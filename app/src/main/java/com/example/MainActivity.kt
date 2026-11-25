@@ -43,6 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -60,6 +63,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.sharing.MallShareContent
+import com.example.ui.components.ShareSheetDialog
 import com.example.ui.navigation.AccessRoute
 import com.example.ui.navigation.ContentManagerRoute
 import com.example.ui.navigation.DirectoryRoute
@@ -69,6 +74,7 @@ import com.example.ui.navigation.MoreHubRoute
 import com.example.ui.navigation.NotificationsRoute
 import com.example.ui.navigation.OffersEventsRoute
 import com.example.ui.navigation.StoreDetailRoute
+import com.example.ui.navigation.TripPlannerRoute
 import com.example.ui.navigation.VisitorServicesRoute
 import com.example.ui.screens.AccessScreen
 import com.example.ui.screens.ContentManagerScreen
@@ -79,6 +85,7 @@ import com.example.ui.screens.MoreHubScreen
 import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.OffersEventsScreen
 import com.example.ui.screens.StoreDetailScreen
+import com.example.ui.screens.TripPlannerScreen
 import com.example.ui.screens.VisitorServicesScreen
 import com.example.ui.theme.ElAbedMallTheme
 import com.example.ui.theme.ElAbedOutline
@@ -129,12 +136,18 @@ fun ElAbedMallApp(
 
     val places by viewModel.places.collectAsStateWithLifecycle()
     val offers by viewModel.offers.collectAsStateWithLifecycle()
+    val interestMatchedOffers by viewModel.interestMatchedOffers.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val notifPrefs by viewModel.notificationPreferences.collectAsStateWithLifecycle()
     val unreadCount by viewModel.unreadNotificationCount.collectAsStateWithLifecycle()
     val tickets by viewModel.tickets.collectAsStateWithLifecycle()
     val mapState by viewModel.mapState.collectAsStateWithLifecycle()
+    val promoBanner by viewModel.promoBanner.collectAsStateWithLifecycle()
+    val orderedTripStops by viewModel.orderedTripStops.collectAsStateWithLifecycle()
+    val shoppingTasks by viewModel.shoppingTasks.collectAsStateWithLifecycle()
+
+    var pendingShareContent by remember { mutableStateOf<MallShareContent?>(null) }
 
     val topDestinations = listOf(
         TopLevelDestination("الرئيسية", Icons.Filled.Home, Icons.Outlined.Home, HomeRoute, "nav_home"),
@@ -273,10 +286,22 @@ fun ElAbedMallApp(
                     composable<HomeRoute> {
                         HomeScreen(
                             places = places,
-                            offers = offers,
+                            offers = interestMatchedOffers,
                             events = events,
+                            promoBanner = promoBanner,
+                            selectedInterests = notifPrefs.selectedInterests,
+                            tripStopCount = orderedTripStops.size,
+                            shoppingTaskCount = shoppingTasks.size,
                             unreadNotifications = unreadCount,
                             onOpenDirectory = { navigateTopLevel(DirectoryRoute()) },
+                            onSearchWithQuery = { q, tabName ->
+                                navController.navigate(
+                                    DirectoryRoute(
+                                        initialQuery = q,
+                                        initialSearchTab = tabName
+                                    )
+                                )
+                            },
                             onOpenIndoorMap = { targetId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
                             },
@@ -285,9 +310,20 @@ fun ElAbedMallApp(
                             onOpenEvents = { navController.navigate(OffersEventsRoute(initialTab = 1)) },
                             onOpenNotifications = { navController.navigate(NotificationsRoute) },
                             onOpenVisitorServices = { navController.navigate(VisitorServicesRoute) },
+                            onOpenTripPlanner = { navController.navigate(TripPlannerRoute) },
                             onOpenStoreDetail = { storeId ->
                                 navController.navigate(StoreDetailRoute(storeId = storeId))
-                            }
+                            },
+                            onToggleInterest = viewModel::toggleVisitorInterest,
+                            onShareOffer = { offer ->
+                                val store = places.firstOrNull { it.id == offer.storeId }
+                                pendingShareContent = MallShareContent.forOffer(offer, store)
+                            },
+                            onShareStore = { store ->
+                                pendingShareContent = MallShareContent.forStore(store)
+                            },
+                            onAddOfferToTrip = viewModel::addOfferToTrip,
+                            onAddStoreToTrip = viewModel::addStoreToTrip
                         )
                     }
 
@@ -297,12 +333,18 @@ fun ElAbedMallApp(
                             places = places,
                             offers = offers,
                             initialCategoryName = args.initialCategory,
+                            initialQuery = args.initialQuery,
+                            initialSearchTabName = args.initialSearchTab,
                             onOpenStoreDetail = { storeId ->
                                 navController.navigate(StoreDetailRoute(storeId = storeId))
                             },
                             onNavigateOnMap = { placeId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = placeId))
-                            }
+                            },
+                            onShareStore = { store ->
+                                pendingShareContent = MallShareContent.forStore(store)
+                            },
+                            onAddStoreToTrip = viewModel::addStoreToTrip
                         )
                     }
 
@@ -316,7 +358,15 @@ fun ElAbedMallApp(
                             onBack = { navController.popBackStack() },
                             onOpenIndoorMap = { targetId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
-                            }
+                            },
+                            onShareStore = { targetStore ->
+                                pendingShareContent = MallShareContent.forStore(targetStore)
+                            },
+                            onShareOffer = { offer ->
+                                pendingShareContent = MallShareContent.forOffer(offer, store)
+                            },
+                            onAddStoreToTrip = viewModel::addStoreToTrip,
+                            onOpenCustomerService = { navController.navigate(VisitorServicesRoute) }
                         )
                     }
 
@@ -345,7 +395,7 @@ fun ElAbedMallApp(
                     composable<OffersEventsRoute> { entry ->
                         val args = entry.toRoute<OffersEventsRoute>()
                         OffersEventsScreen(
-                            offers = offers,
+                            offers = interestMatchedOffers,
                             events = events,
                             initialTab = args.initialTab,
                             onOpenStoreDetail = { storeId ->
@@ -353,16 +403,23 @@ fun ElAbedMallApp(
                             },
                             onOpenIndoorMap = { targetId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
-                            }
+                            },
+                            onShareOffer = { offer ->
+                                val store = places.firstOrNull { it.id == offer.storeId }
+                                pendingShareContent = MallShareContent.forOffer(offer, store)
+                            },
+                            onAddOfferToTrip = viewModel::addOfferToTrip
                         )
                     }
 
                     composable<MoreHubRoute> {
                         MoreHubScreen(
                             unreadNotifications = unreadCount,
+                            tripStopCount = orderedTripStops.size,
                             onOpenAccess = { navController.navigate(AccessRoute) },
                             onOpenNotifications = { navController.navigate(NotificationsRoute) },
                             onOpenVisitorServices = { navController.navigate(VisitorServicesRoute) },
+                            onOpenTripPlanner = { navController.navigate(TripPlannerRoute) },
                             onOpenContentManager = { navController.navigate(ContentManagerRoute) }
                         )
                     }
@@ -387,11 +444,9 @@ fun ElAbedMallApp(
                             onToggleOpenings = viewModel::toggleOpeningsNotif,
                             onToggleEvents = viewModel::toggleEventsNotif,
                             onToggleAlerts = viewModel::toggleAlertsNotif,
+                            onToggleInterest = viewModel::toggleVisitorInterest,
                             onSendTestNotification = {
-                                viewModel.sendTestNotification(
-                                    title = "مرحباً بك في مول العابد",
-                                    body = "تصفح عروض الهايبر ماركت وابدأ التوجيه التفاعلي على الخريطة."
-                                )
+                                viewModel.sendInterestTestOfferNotification()
                             },
                             onOpenLinkedTarget = { notif ->
                                 val target = notif.linkedTargetId
@@ -418,22 +473,50 @@ fun ElAbedMallApp(
                         )
                     }
 
+                    composable<TripPlannerRoute> {
+                        TripPlannerScreen(
+                            orderedStops = orderedTripStops,
+                            shoppingTasks = shoppingTasks,
+                            onBack = { navController.popBackStack() },
+                            onOpenIndoorMap = { targetId ->
+                                navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
+                            },
+                            onOpenDirectory = { navigateTopLevel(DirectoryRoute()) },
+                            onOpenOffers = { navigateTopLevel(OffersEventsRoute(initialTab = 0)) },
+                            onToggleTripStopVisited = viewModel::toggleTripStopVisited,
+                            onRemoveTripStop = viewModel::removeTripStop,
+                            onClearVisitedStops = viewModel::clearVisitedTripStops,
+                            onAddShoppingTask = viewModel::addShoppingTask,
+                            onToggleShoppingTask = viewModel::toggleShoppingTask,
+                            onDeleteShoppingTask = viewModel::deleteShoppingTask,
+                            onClearCheckedTasks = viewModel::clearCheckedShoppingTasks
+                        )
+                    }
+
                     composable<ContentManagerRoute> {
                         ContentManagerScreen(
                             places = places,
                             offers = offers,
                             events = events,
+                            promoBanner = promoBanner,
                             onBack = { navController.popBackStack() },
                             onSaveStore = viewModel::saveStoreFromCms,
                             onDeleteStore = viewModel::deleteStore,
                             onAddOffer = viewModel::addOfferFromCms,
                             onAddEvent = viewModel::addEventFromCms,
-                            onBroadcastNotification = viewModel::broadcastNotificationFromCms
+                            onBroadcastNotification = viewModel::broadcastNotificationFromCms,
+                            onSavePromoBanner = viewModel::savePromoBannerFromAdmin,
+                            onResetPromoBanner = viewModel::resetPromoBanner
                         )
                     }
                 }
             }
         }
+
+        ShareSheetDialog(
+            content = pendingShareContent,
+            onDismiss = { pendingShareContent = null }
+        )
     }
 }
 
