@@ -62,80 +62,90 @@ fun ProductSuggestionPillCard(
 ) {
     Surface(
         onClick = onOpenStore,
-        modifier = modifier
-            .minimumInteractiveComponentSize()
-            .testTag("directory_product_${product.id}"),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.testTag("directory_product_${product.id}"),
+        shape = RoundedCornerShape(10.dp),
         color = product.softTintColor,
         border = BorderStroke(1.5.dp, borderColor),
-        shadowElevation = 2.dp
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 7.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 5.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(product.accentColor),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = product.icon,
-                    contentDescription = product.nameAr,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Text(
-                text = product.nameAr,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp
-                ),
-                fontWeight = FontWeight.Bold,
-                color = ElAbedTextPrimary,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                minLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = product.brandNameAr,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                fontWeight = FontWeight.SemiBold,
-                color = ElAbedTextSecondary,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Surface(
-                onClick = onNavigateMap,
-                shape = RoundedCornerShape(50),
-                color = product.accentColor,
-                modifier = Modifier.testTag("directory_product_map_btn_${product.id}")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(product.accentColor),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Navigation,
-                        contentDescription = "خريطة",
+                        imageVector = product.icon,
+                        contentDescription = product.nameAr,
                         tint = Color.White,
-                        modifier = Modifier.size(11.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Text(
-                        text = "خريطة",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                }
+                Text(
+                    text = product.nameAr,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    color = ElAbedTextPrimary,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = product.brandNameAr,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    color = ElAbedTextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Surface(
+                    onClick = onNavigateMap,
+                    shape = RoundedCornerShape(50),
+                    color = product.accentColor,
+                    modifier = Modifier.testTag("directory_product_map_btn_${product.id}")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = "خريطة",
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "خريطة",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -152,67 +162,77 @@ fun CompactBrandPlaceCard(
 ) {
     Surface(
         onClick = onOpenStoreDetail,
-        modifier = modifier
-            .minimumInteractiveComponentSize()
-            .testTag("directory_item_${place.id}"),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.testTag("directory_item_${place.id}"),
+        shape = RoundedCornerShape(10.dp),
         color = Color.White,
         border = BorderStroke(1.5.dp, borderColor),
-        shadowElevation = 2.dp
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 7.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 5.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            StoreLogoBadge(store = place, size = 32.dp)
-            Text(
-                text = place.nameAr,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp
-                ),
-                fontWeight = FontWeight.Bold,
-                color = ElAbedTextPrimary,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                minLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = place.floorLabelAr,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = ElAbedRoyalBlue,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Surface(
-                onClick = onNavigateOnMap,
-                shape = RoundedCornerShape(50),
-                color = ElAbedRoyalBlue,
-                modifier = Modifier.testTag("directory_map_btn_${place.id}")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                StoreLogoBadge(store = place, size = 26.dp)
+                Text(
+                    text = place.nameAr,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    color = ElAbedTextPrimary,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = place.floorLabelAr,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    color = ElAbedRoyalBlue,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Surface(
+                    onClick = onNavigateOnMap,
+                    shape = RoundedCornerShape(50),
+                    color = ElAbedRoyalBlue,
+                    modifier = Modifier.testTag("directory_map_btn_${place.id}")
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Navigation,
-                        contentDescription = "خريطة ${place.nameAr}",
-                        tint = Color.White,
-                        modifier = Modifier.size(11.dp)
-                    )
-                    Text(
-                        text = "خريطة",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Navigation,
+                            contentDescription = "خريطة ${place.nameAr}",
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "خريطة",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
