@@ -38,6 +38,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -127,8 +129,12 @@ fun TasksShoppingScreen(
     val pendingCount = tasks.count { !it.isChecked }
     val checkedCount = tasks.count { it.isChecked }
 
+    val total = tasks.size
+    val progress = if (total == 0) 0f else checkedCount.toFloat() / total
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = Color.White,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -150,7 +156,7 @@ fun TasksShoppingScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(Color.White)
                 .padding(innerPadding),
             contentAlignment = Alignment.TopCenter
         ) {
@@ -158,103 +164,76 @@ fun TasksShoppingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .widthIn(max = 840.dp),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header Summary Strip
+                // Progress summary
                 item {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.Transparent,
+                        shape = RoundedCornerShape(18.dp),
+                        color = ElAbedRoyalBlueContainer.copy(alpha = 0.45f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(ElAbedRoyalBlue, Color(0xFF3E5CB8))
-                                    )
-                                )
-                                .padding(16.dp)
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "خطط مهامك ومشترياتك في العابد",
+                                        text = if (total == 0) "ابدأ قائمتك" else "$checkedCount من $total تمت",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = ElAbedRoyalBlue
                                     )
                                     Text(
-                                        text = "اكتب الطلب وسنقترح لك البراندات والأماكن المناسبة داخل المول",
+                                        text = "اكتب الطلب وسنقترح لك المكان المناسب داخل المول",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFEAF0FF)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = Color.White.copy(alpha = 0.18f)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = "$pendingCount",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "متبقي",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFEAF0FF)
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = "$pendingCount",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ElAbedRoyalBlue
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "متبقي",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = ElAbedVibrantGreen,
+                                trackColor = Color.White
+                            )
                         }
                     }
                 }
 
-                // Add Task / Purchase Card with Smart Mall Place Suggestions
+                // Add card
                 item {
                     Card(
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         border = BorderStroke(1.dp, ElAbedOutline),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PlaylistAddCheck,
-                                    contentDescription = null,
-                                    tint = ElAbedRoyalBlue
-                                )
-                                Text(
-                                    text = "إضافة مهمة أو مشتريات جديدة",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            // Type selector: مشتريات / مهمة
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf(
                                     "مشتريات" to Icons.Filled.ShoppingBag,
@@ -288,206 +267,135 @@ fun TasksShoppingScreen(
                                 }
                             }
 
-                            OutlinedTextField(
-                                value = itemInput,
-                                onValueChange = { itemInput = it },
-                                label = { Text("اكتب المهمة أو الصنف (مثال: لحوم، شاحن سامسونج، عطر، سحب نقدي)") },
-                                singleLine = true,
-                                trailingIcon = {
-                                    if (itemInput.isNotEmpty()) {
-                                        IconButton(onClick = { itemInput = "" }) {
-                                            Icon(Icons.Filled.Clear, contentDescription = "مسح النص")
-                                        }
+                            val submit = {
+                                if (itemInput.isNotBlank()) {
+                                    val tag = selectedStore?.let {
+                                        "$selectedTaskType • ${it.category.labelAr}"
+                                    } ?: selectedTaskType
+                                    onAddTask(itemInput, tag, selectedStore)
+                                    val addedPlaceName = selectedStore?.nameAr
+                                    itemInput = ""
+                                    selectedStore = null
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (addedPlaceName != null) {
+                                                "تمت الإضافة وربطها بمكان: $addedPlaceName"
+                                            } else {
+                                                "تمت الإضافة إلى القائمة"
+                                            }
+                                        )
                                     }
-                                },
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("tasks_item_input")
-                            )
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("اكتب اسم المهمة أو الصنف أولاً")
+                                    }
+                                }
+                            }
 
-                            // Smart Suggested Places inside El Abed Mall
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = itemInput,
+                                    onValueChange = { itemInput = it },
+                                    placeholder = {
+                                        Text(
+                                            "مثال: لحوم، شاحن، عطر، سحب نقدي",
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    singleLine = true,
+                                    trailingIcon = {
+                                        if (itemInput.isNotEmpty()) {
+                                            IconButton(onClick = { itemInput = "" }) {
+                                                Icon(Icons.Filled.Clear, contentDescription = "مسح النص")
+                                            }
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("tasks_item_input")
+                                )
+                                Button(
+                                    onClick = { submit() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ElAbedRoyalBlue,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    contentPadding = PaddingValues(0.dp),
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .testTag("tasks_add_button")
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "إضافة للقائمة")
+                                }
+                            }
+
+                            if (placeSuggestions.isNotEmpty()) {
                                 Text(
                                     text = if (itemInput.isBlank()) {
-                                        "أماكن وبراندات مقترحة في العابد مول:"
+                                        "أماكن مقترحة (اختياري)"
                                     } else {
-                                        "اقتراحات الأماكن المناسبة لـ «${itemInput.trim()}»:"
+                                        "أماكن مناسبة لـ «${itemInput.trim()}»"
                                     },
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = ElAbedRoyalBlue
-                                )
-                                Text(
-                                    text = "اختر المكان الذي ستشتري منه أو تنفذ فيه المهمة (اختياري)",
-                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
-
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(placeSuggestions, key = { it.store.id }) { suggestion ->
-                                    val isChosen = selectedStore?.id == suggestion.store.id
-                                    Surface(
-                                        onClick = {
-                                            selectedStore = if (isChosen) null else suggestion.store
-                                        },
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = if (isChosen) {
-                                            ElAbedRoyalBlueContainer.copy(alpha = 0.65f)
-                                        } else {
-                                            ElAbedSurfaceVariant
-                                        },
-                                        border = BorderStroke(
-                                            width = if (isChosen) 1.5.dp else 1.dp,
-                                            color = if (isChosen) ElAbedRoyalBlue else ElAbedOutline
-                                        ),
-                                        modifier = Modifier
-                                            .width(210.dp)
-                                            .testTag("task_place_suggestion_${suggestion.store.id}")
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(placeSuggestions, key = { it.store.id }) { suggestion ->
+                                        val isChosen = selectedStore?.id == suggestion.store.id
+                                        Surface(
+                                            onClick = {
+                                                selectedStore = if (isChosen) null else suggestion.store
+                                            },
+                                            shape = RoundedCornerShape(50),
+                                            color = if (isChosen) ElAbedRoyalBlueContainer else ElAbedSurfaceVariant,
+                                            border = BorderStroke(
+                                                width = if (isChosen) 1.5.dp else 1.dp,
+                                                color = if (isChosen) ElAbedRoyalBlue else ElAbedOutline
+                                            ),
+                                            modifier = Modifier.testTag("task_place_suggestion_${suggestion.store.id}")
                                         ) {
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                                modifier = Modifier.padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                StoreLogoBadge(store = suggestion.store, size = 38.dp)
                                                 if (isChosen) {
                                                     Icon(
                                                         imageVector = Icons.Filled.CheckCircle,
                                                         contentDescription = "مكان مختار",
                                                         tint = ElAbedRoyalBlue,
-                                                        modifier = Modifier.size(22.dp)
+                                                        modifier = Modifier.size(28.dp)
                                                     )
                                                 } else {
-                                                    FloorPill(floor = suggestion.store.floor)
+                                                    StoreLogoBadge(store = suggestion.store, size = 28.dp)
                                                 }
-                                            }
-                                            Text(
-                                                text = suggestion.store.nameAr,
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = if (isChosen) ElAbedRoyalBlue else MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = suggestion.reasonAr,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            AnimatedVisibility(visible = selectedStore != null) {
-                                selectedStore?.let { chosen ->
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = ElAbedWarmOrangeContainer.copy(alpha = 0.65f),
-                                        border = BorderStroke(1.dp, ElAbedWarmOrange.copy(alpha = 0.45f)),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                modifier = Modifier.weight(1f)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.LocationOn,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFF8A4300),
-                                                    modifier = Modifier.size(18.dp)
-                                                )
                                                 Text(
-                                                    text = "المكان المحدد: ${chosen.nameAr} (${chosen.floorLabelAr})",
+                                                    text = suggestion.store.nameAr,
                                                     style = MaterialTheme.typography.labelLarge,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF6B3200),
+                                                    fontWeight = if (isChosen) FontWeight.Bold else FontWeight.SemiBold,
+                                                    color = if (isChosen) ElAbedRoyalBlue else MaterialTheme.colorScheme.onSurface,
                                                     maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = { selectedStore = null },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Clear,
-                                                    contentDescription = "إلغاء تحديد المكان",
-                                                    tint = Color(0xFF6B3200),
-                                                    modifier = Modifier.size(18.dp)
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.widthIn(max = 150.dp)
                                                 )
                                             }
                                         }
                                     }
                                 }
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (itemInput.isNotBlank()) {
-                                        val tag = selectedStore?.let {
-                                            "$selectedTaskType • ${it.category.labelAr}"
-                                        } ?: selectedTaskType
-                                        onAddTask(itemInput, tag, selectedStore)
-                                        val addedPlaceName = selectedStore?.nameAr
-                                        itemInput = ""
-                                        selectedStore = null
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                if (addedPlaceName != null) {
-                                                    "تمت الإضافة وربطها بمكان: $addedPlaceName"
-                                                } else {
-                                                    "تمت الإضافة إلى قائمة المهام والمشتريات"
-                                                }
-                                            )
-                                        }
-                                    } else {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("اكتب اسم المهمة أو الصنف أولاً")
-                                        }
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = ElAbedRoyalBlue,
-                                    contentColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("tasks_add_button")
-                            ) {
-                                Icon(Icons.Filled.Add, contentDescription = null)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "إضافة للقائمة",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
                         }
                     }
                 }
 
-                // Filter Strip + Clear Completed
+                // Filters
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -496,8 +404,8 @@ fun TasksShoppingScreen(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf(
-                                0 to "الكل (${tasks.size})",
-                                1 to "قيد التنفيذ ($pendingCount)",
+                                0 to "الكل ($total)",
+                                1 to "متبقي ($pendingCount)",
                                 2 to "تمت ($checkedCount)"
                             ).forEach { (idx, label) ->
                                 FilterChip(
@@ -511,13 +419,13 @@ fun TasksShoppingScreen(
                                         )
                                     },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = ElAbedRoyalBlueContainer,
-                                        selectedLabelColor = ElAbedRoyalBlue
+                                        selectedContainerColor = ElAbedRoyalBlue,
+                                        selectedLabelColor = Color.White,
+                                        containerColor = ElAbedSurfaceVariant
                                     )
                                 )
                             }
                         }
-
                         if (checkedCount > 0) {
                             TextButton(onClick = onClearChecked) {
                                 Text("مسح المكتمل", style = MaterialTheme.typography.labelLarge)
@@ -526,42 +434,31 @@ fun TasksShoppingScreen(
                     }
                 }
 
-                // Empty State or Tasks List
                 if (filteredTasks.isEmpty()) {
                     item {
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = ElAbedSurfaceVariant),
-                            border = BorderStroke(1.dp, ElAbedOutline)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 28.dp, horizontal = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PlaylistAddCheck,
-                                    contentDescription = null,
-                                    tint = ElAbedRoyalBlue,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Text(
-                                    text = if (tasks.isEmpty()) {
-                                        "قائمة المهام والمشتريات فارغة"
-                                    } else {
-                                        "لا توجد عناصر في هذا التصنيف"
-                                    },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "ابدأ بكتابة أي غرض أو مهمة، واختر البراند أو المكان المقترح داخل العابد مول للوصول إليه بسهولة.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.PlaylistAddCheck,
+                                contentDescription = null,
+                                tint = ElAbedRoyalBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Text(
+                                text = if (tasks.isEmpty()) "القائمة فارغة" else "لا توجد عناصر هنا",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "اكتب أي غرض أو مهمة وسنوصلك للمكان المناسب في العابد مول.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 } else {
@@ -570,34 +467,32 @@ fun TasksShoppingScreen(
                         Card(
                             shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (task.isChecked) {
-                                    ElAbedVibrantGreenContainer.copy(alpha = 0.28f)
-                                } else {
-                                    Color.White
-                                }
+                                containerColor = if (task.isChecked) ElAbedSurfaceVariant else Color.White
                             ),
                             border = BorderStroke(1.dp, ElAbedOutline),
-                            elevation = CardDefaults.cardElevation(defaultElevation = if (task.isChecked) 0.dp else 1.5.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onToggleTask(task.id, !task.isChecked) }
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onToggleTask(task.id, !task.isChecked) },
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Checkbox(
                                         checked = task.isChecked,
-                                        onCheckedChange = { onToggleTask(task.id, it) }
+                                        onCheckedChange = { onToggleTask(task.id, it) },
+                                        colors = CheckboxDefaults.colors(checkedColor = ElAbedVibrantGreen)
                                     )
                                     Column(
                                         modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
                                         Text(
                                             text = task.itemName,
@@ -610,34 +505,31 @@ fun TasksShoppingScreen(
                                                 MaterialTheme.colorScheme.onSurface
                                             }
                                         )
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = ElAbedRoyalBlueContainer.copy(alpha = 0.6f)
-                                        ) {
-                                            Text(
-                                                text = task.departmentTag,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = ElAbedRoyalBlue,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                            )
-                                        }
+                                        Text(
+                                            text = task.departmentTag,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     IconButton(
                                         onClick = { onDeleteTask(task.id) },
                                         modifier = Modifier.size(48.dp)
                                     ) {
-                                        Icon(Icons.Filled.DeleteOutline, contentDescription = "حذف المهمة")
+                                        Icon(
+                                            Icons.Filled.DeleteOutline,
+                                            contentDescription = "حذف المهمة",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 }
 
-                                // Linked Mall Brand / Place Row
                                 if (!task.storeNameAr.isNullOrBlank() && !task.storeId.isNullOrBlank()) {
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                         color = ElAbedSurfaceVariant,
-                                        border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.7f)),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 4.dp, end = 4.dp, bottom = 4.dp)
                                     ) {
                                         Row(
                                             modifier = Modifier
@@ -648,7 +540,7 @@ fun TasksShoppingScreen(
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .clickable { onOpenStoreDetail(task.storeId) }
@@ -660,7 +552,7 @@ fun TasksShoppingScreen(
                                                         imageVector = Icons.Filled.Storefront,
                                                         contentDescription = null,
                                                         tint = ElAbedRoyalBlue,
-                                                        modifier = Modifier.size(20.dp)
+                                                        modifier = Modifier.size(22.dp)
                                                     )
                                                 }
                                                 Column(modifier = Modifier.weight(1f)) {
@@ -685,9 +577,14 @@ fun TasksShoppingScreen(
                                                 }
                                             }
 
-                                            OutlinedButton(
+                                            Button(
                                                 onClick = { onOpenIndoorMap(task.storeId) },
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = ElAbedRoyalBlue,
+                                                    contentColor = Color.White
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                                 modifier = Modifier
                                                     .height(40.dp)
                                                     .testTag("task_navigate_${task.id}")
@@ -695,12 +592,12 @@ fun TasksShoppingScreen(
                                                 Icon(
                                                     imageVector = Icons.Filled.Navigation,
                                                     contentDescription = null,
-                                                    modifier = Modifier.size(14.dp)
+                                                    modifier = Modifier.size(16.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
                                                     text = "توجيه",
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             }
