@@ -65,7 +65,7 @@ fun ProductSuggestionPillCard(
             .testTag("directory_product_${product.id}"),
         shape = RoundedCornerShape(18.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, ElAbedOutline),
+        border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
         shadowElevation = 0.dp
     ) {
         Column(
@@ -176,7 +176,7 @@ fun BrandPlaceDirectoryCard(
             .testTag("directory_item_${place.id}"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.85f)),
+        border = BorderStroke(1.dp, Color(0xFFC3CBDE)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
