@@ -25,35 +25,25 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.StoreMallDirectory
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,7 +54,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,15 +65,27 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.MallPlaceCategory
 import com.example.data.model.OfferEntity
 import com.example.data.model.StoreEntity
+import com.example.data.search.MallProductCatalog
 import com.example.data.search.MallSearchEngine
 import com.example.data.search.SearchPathTab
-import com.example.ui.components.FloorPill
-import com.example.ui.components.StoreLogoBadge
+import com.example.ui.components.BrandPlaceDirectoryCard
+import com.example.ui.components.ProductSuggestionPillCard
+import com.example.ui.components.SectionHeader
 import com.example.ui.theme.ElAbedOutline
 import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedRoyalBlueContainer
 import com.example.ui.theme.ElAbedSurfaceVariant
+import com.example.ui.theme.ElAbedTextPrimary
+import com.example.ui.theme.ElAbedTextSecondary
 import kotlinx.coroutines.launch
+
+private enum class DirectoryBrowseTab(
+    val labelAr: String,
+    val icon: ImageVector
+) {
+    PRODUCTS("المنتجات والخدمات", Icons.Filled.ShoppingBag),
+    PLACES("البراندات والأماكن", Icons.Filled.Storefront)
+}
 
 @Composable
 fun DirectoryScreen(
@@ -96,10 +101,13 @@ fun DirectoryScreen(
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember(initialQuery) { mutableStateOf(initialQuery.orEmpty()) }
-    var selectedSearchTab by remember(initialSearchTabName) {
+    var activeTab by remember(initialCategoryName, initialSearchTabName) {
         mutableStateOf(
-            SearchPathTab.entries.firstOrNull { it.name == initialSearchTabName }
-                ?: SearchPathTab.ALL
+            when {
+                initialCategoryName != null -> DirectoryBrowseTab.PLACES
+                initialSearchTabName == SearchPathTab.BRANDS.name -> DirectoryBrowseTab.PLACES
+                else -> DirectoryBrowseTab.PRODUCTS
+            }
         )
     }
     var selectedCategory by remember(initialCategoryName) {
@@ -108,7 +116,6 @@ fun DirectoryScreen(
         )
     }
     var selectedFloorFilter by remember { mutableIntStateOf(-1) }
-    var showSuggestions by remember(initialQuery) { mutableStateOf(!initialQuery.isNullOrBlank()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -123,7 +130,6 @@ fun DirectoryScreen(
                 ?.trim()
             if (!spoken.isNullOrBlank()) {
                 searchQuery = spoken
-                showSuggestions = true
             }
         }
     }
@@ -132,7 +138,7 @@ fun DirectoryScreen(
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-EG")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث باسم المحل أو المنتج...")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث باسم المنتج أو البراند أو الخدمة...")
         }
         try {
             voiceLauncher.launch(intent)
@@ -145,35 +151,38 @@ fun DirectoryScreen(
 
     val offersByStore = remember(offers) { offers.groupBy { it.storeId } }
 
-    val suggestions = remember(places, offers, searchQuery, selectedSearchTab) {
-        MallSearchEngine.buildSuggestions(
-            places = places,
-            offers = offers,
+    val filteredProducts = remember(searchQuery, selectedCategory, selectedFloorFilter) {
+        MallProductCatalog.filterProducts(
             rawQuery = searchQuery,
-            searchTab = selectedSearchTab,
-            limit = 5
-        )
-    }
-
-    val filteredPlaces = remember(places, offers, searchQuery, selectedSearchTab, selectedCategory, selectedFloorFilter) {
-        MallSearchEngine.filterPlaces(
-            places = places,
-            offers = offers,
-            rawQuery = searchQuery,
-            searchTab = selectedSearchTab,
             selectedCategory = selectedCategory,
             selectedFloor = selectedFloorFilter
         )
     }
 
+    val filteredPlaces = remember(places, offers, searchQuery, selectedCategory, selectedFloorFilter) {
+        MallSearchEngine.filterPlaces(
+            places = places,
+            offers = offers,
+            rawQuery = searchQuery,
+            searchTab = SearchPathTab.ALL,
+            selectedCategory = selectedCategory,
+            selectedFloor = selectedFloorFilter
+        ).sortedWith(
+            compareBy<StoreEntity> { it.isServiceFacility }
+                .thenByDescending { it.isFeatured }
+                .thenBy { it.floor }
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = Color.White,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(Color.White)
                 .padding(innerPadding),
             contentAlignment = Alignment.TopCenter
         ) {
@@ -182,195 +191,56 @@ fun DirectoryScreen(
                     .fillMaxSize()
                     .widthIn(max = 840.dp)
             ) {
+                // Header + Modern Search Bar + 2-Option Segmented Pill Toggle Directly Below Search
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "دليل المحلات والبحث المتقدم",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-
-                    // Search Path Tabs: الكل / البراندات والمحلات / المنتجات والأقسام
-                    TabRow(
-                        selectedTabIndex = SearchPathTab.entries.indexOf(selectedSearchTab),
-                        containerColor = Color.Transparent
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SearchPathTab.entries.forEach { tab ->
-                            val isSelected = selectedSearchTab == tab
-                            Tab(
-                                selected = isSelected,
-                                onClick = { selectedSearchTab = tab },
-                                text = {
-                                    Text(
-                                        text = tab.labelAr,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                modifier = Modifier.testTag("directory_search_tab_${tab.name}")
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            showSuggestions = it.isNotBlank()
-                        },
-                        placeholder = {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = when (selectedSearchTab) {
-                                    SearchPathTab.BRANDS -> "ابحث باسم البراند أو المحل..."
-                                    SearchPathTab.PRODUCTS -> "ابحث عن منتج، لحوم، هواتف، عطور..."
-                                    SearchPathTab.ALL -> "ابحث بالاسم، الهاشتاج، أو بالصوت..."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = "دليل العابد مول",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ElAbedTextPrimary
                             )
-                        },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = ElAbedRoyalBlue) },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { launchVoiceSearch() },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .testTag("directory_voice_search_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Mic,
-                                        contentDescription = "البحث بالصوت",
-                                        tint = ElAbedRoyalBlue
-                                    )
-                                }
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = {
-                                            searchQuery = ""
-                                            showSuggestions = false
-                                        },
-                                        modifier = Modifier.size(48.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Clear, contentDescription = "مسح البحث")
-                                    }
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("directory_search_input")
-                    )
-
-                    // Search Hashtags
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(MallSearchEngine.popularHashtags, key = { it.tag }) { hashtag ->
-                            val isSelected = searchQuery.equals(hashtag.tag, ignoreCase = true)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    if (isSelected) {
-                                        searchQuery = ""
-                                        showSuggestions = false
-                                    } else {
-                                        searchQuery = hashtag.tag
-                                        selectedSearchTab = hashtag.targetTab
-                                        showSuggestions = true
-                                    }
-                                },
-                                label = {
-                                    Text(
-                                        text = hashtag.tag,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = ElAbedRoyalBlue,
-                                    selectedLabelColor = Color.White
-                                ),
-                                modifier = Modifier.testTag("directory_hashtag_${hashtag.tag}")
+                            Text(
+                                text = "ابحث عن أي منتج أو براند أو خدمة داخل المول",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ElAbedTextSecondary
                             )
                         }
-                    }
 
-                    // Instant Brand & Logo Suggestions Panel
-                    if (showSuggestions && searchQuery.isNotBlank() && suggestions.isNotEmpty()) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, ElAbedRoyalBlue.copy(alpha = 0.25f)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        // Compact Floor Selector Pill in Header
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF1F4FA),
+                            border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.7f))
                         ) {
-                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "اقتراحات سريعة (${suggestions.size})",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ElAbedRoyalBlue
-                                    )
-                                    Text(
-                                        text = "إخفاء",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Row(
+                                modifier = Modifier.padding(3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                listOf(-1 to "الكل", 0 to "أرضي", 1 to "أول").forEach { (floorVal, label) ->
+                                    val selected = selectedFloorFilter == floorVal
+                                    Box(
                                         modifier = Modifier
-                                            .clickable { showSuggestions = false }
-                                            .padding(4.dp)
-                                    )
-                                }
-                                suggestions.forEachIndexed { idx, suggestion ->
-                                    if (idx > 0) HorizontalDivider(color = ElAbedOutline.copy(alpha = 0.5f))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                showSuggestions = false
-                                                onOpenStoreDetail(suggestion.store.id)
-                                            }
-                                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            .clip(RoundedCornerShape(9.dp))
+                                            .background(if (selected) ElAbedRoyalBlue else Color.Transparent)
+                                            .clickable { selectedFloorFilter = floorVal }
+                                            .padding(horizontal = 9.dp, vertical = 6.dp)
                                     ) {
-                                        StoreLogoBadge(store = suggestion.store, size = 38.dp)
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = suggestion.store.nameAr,
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = suggestion.matchReasonAr,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = ElAbedRoyalBlue,
-                                            modifier = Modifier.size(16.dp)
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (selected) Color.White else ElAbedTextSecondary
                                         )
                                     }
                                 }
@@ -378,32 +248,151 @@ fun DirectoryScreen(
                         }
                     }
 
-                    // Floor filter
-                    val floorOptions = listOf(-1 to "كل الأدوار", 0 to "الدور الأرضي", 1 to "الدور الأول")
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        floorOptions.forEachIndexed { idx, (floorVal, label) ->
-                            SegmentedButton(
-                                selected = selectedFloorFilter == floorVal,
-                                onClick = { selectedFloorFilter = floorVal },
-                                shape = SegmentedButtonDefaults.itemShape(index = idx, count = floorOptions.size),
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = ElAbedRoyalBlueContainer,
-                                    activeContentColor = ElAbedRoyalBlue,
-                                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                                    inactiveContentColor = MaterialTheme.colorScheme.onSurface
-                                )
+                    // Wide Spacious Search Input with Voice Search Button
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFFF3F6FC),
+                        border = BorderStroke(
+                            1.2.dp,
+                            if (searchQuery.isNotBlank()) ElAbedRoyalBlue else ElAbedOutline
+                        ),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 14.dp, end = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                                tint = ElAbedRoyalBlue,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (selectedFloorFilter == floorVal) FontWeight.Bold else FontWeight.Medium
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = if (activeTab == DirectoryBrowseTab.PRODUCTS) {
+                                            "ابحث عن منتج، لحوم، أجهزة، عطور..."
+                                        } else {
+                                            "ابحث باسم البراند، المطعم، البنك..."
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = ElAbedTextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = ElAbedTextPrimary,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    cursorBrush = SolidColor(ElAbedRoyalBlue),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("directory_search_input")
                                 )
+                            }
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = "مسح البحث",
+                                        tint = ElAbedTextSecondary
+                                    )
+                                }
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(13.dp),
+                                color = ElAbedRoyalBlueContainer
+                            ) {
+                                IconButton(
+                                    onClick = { launchVoiceSearch() },
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .testTag("directory_voice_search_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Mic,
+                                        contentDescription = "البحث بالصوت",
+                                        tint = ElAbedRoyalBlue,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Directly Beneath Search Bar: Crisp 2-Way Mode Toggle (المنتجات والخدمات | البراندات والأماكن)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF0F3FA),
+                        border = BorderStroke(1.dp, ElAbedOutline.copy(alpha = 0.7f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            DirectoryBrowseTab.entries.forEach { tab ->
+                                val selected = activeTab == tab
+                                Surface(
+                                    onClick = { activeTab = tab },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (selected) ElAbedRoyalBlue else Color.Transparent,
+                                    shadowElevation = if (selected) 2.dp else 0.dp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp)
+                                        .testTag("directory_search_tab_${tab.name}")
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 10.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = null,
+                                            tint = if (selected) Color.White else ElAbedTextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = tab.labelAr,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (selected) Color.White else ElAbedTextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // Category chips
+                // Clean Category Filter Strip (No Hashtags)
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -412,214 +401,207 @@ fun DirectoryScreen(
                         FilterChip(
                             selected = selectedCategory == null,
                             onClick = { selectedCategory = null },
-                            label = { Text("الكل", style = MaterialTheme.typography.labelLarge) },
+                            label = {
+                                Text(
+                                    text = "الكل",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (selectedCategory == null) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ElAbedRoyalBlueContainer,
-                                selectedLabelColor = ElAbedRoyalBlue
+                                selectedContainerColor = ElAbedRoyalBlue,
+                                selectedLabelColor = Color.White,
+                                containerColor = ElAbedSurfaceVariant
                             )
                         )
                     }
                     items(MallPlaceCategory.entries) { cat ->
+                        val isCatSelected = selectedCategory == cat
                         FilterChip(
-                            selected = selectedCategory == cat,
+                            selected = isCatSelected,
                             onClick = {
-                                selectedCategory = if (selectedCategory == cat) null else cat
+                                selectedCategory = if (isCatSelected) null else cat
                             },
-                            label = { Text(cat.labelAr, style = MaterialTheme.typography.labelLarge) },
+                            label = {
+                                Text(
+                                    text = cat.labelAr,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ElAbedRoyalBlueContainer,
-                                selectedLabelColor = ElAbedRoyalBlue
+                                selectedContainerColor = ElAbedRoyalBlue,
+                                selectedLabelColor = Color.White,
+                                containerColor = ElAbedSurfaceVariant
                             )
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                if (filteredPlaces.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                // Body Content Depending on Active Toggle
+                if (activeTab == DirectoryBrowseTab.PRODUCTS) {
+                    val productRows = remember(filteredProducts) { filteredProducts.chunked(2) }
+                    if (productRows.isEmpty() && filteredPlaces.isEmpty()) {
+                        EmptySearchPlaceholder(
+                            onClear = {
+                                searchQuery = ""
+                                selectedCategory = null
+                                selectedFloorFilter = -1
+                            }
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 92.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.StoreMallDirectory,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(56.dp)
-                            )
-                            Text(
-                                text = "لا توجد نتائج مطابقة للبحث",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "جرّب البحث باسم آخر أو إزالة فلتر الفئة والدور",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filteredPlaces, key = { it.id }) { place ->
-                            val storeOffers = offersByStore[place.id].orEmpty()
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onOpenStoreDetail(place.id) }
-                                    .testTag("directory_item_${place.id}"),
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = ElAbedSurfaceVariant.copy(alpha = 0.45f)
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
+                            if (productRows.isNotEmpty()) {
+                                item {
+                                    SectionHeader(
+                                        title = if (searchQuery.isBlank()) "منتجات وخدمات مقترحة" else "نتائج المنتجات والخدمات",
+                                        subtitle = "اضغط على أي منتج لمعرفة مكانه أو تفاصيله"
+                                    )
+                                }
+                                items(productRows) { rowItems ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        StoreLogoBadge(store = place)
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = place.nameAr,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.weight(1f, fill = false)
-                                                )
-                                                if (place.isNewOpening) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        color = MaterialTheme.colorScheme.secondary
-                                                    ) {
-                                                        Text(
-                                                            text = "جديد",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onSecondary,
-                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            Text(
-                                                text = "${place.category.labelAr} • ${place.zoneAr}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        FloorPill(floor = place.floor)
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (storeOffers.isNotEmpty()) {
-                                            Surface(
-                                                shape = RoundedCornerShape(10.dp),
-                                                color = MaterialTheme.colorScheme.tertiaryContainer
-                                            ) {
-                                                Text(
-                                                    text = "${storeOffers.first().discountBadge} متاح الآن",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                                )
-                                            }
-                                        } else {
-                                            Text(
-                                                text = "مواعيد: ${place.hoursAr}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
+                                        rowItems.forEach { product ->
+                                            ProductSuggestionPillCard(
+                                                product = product,
+                                                onOpenStore = { onOpenStoreDetail(product.storeId) },
+                                                onNavigateMap = { onNavigateOnMap(product.storeId) },
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            IconButton(
-                                                onClick = {
-                                                    onAddStoreToTrip(place)
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("تمت إضافة ${place.nameAr} لقائمة المشوار")
-                                                    }
-                                                },
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .testTag("directory_trip_btn_${place.id}")
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.BookmarkAdd,
-                                                    contentDescription = "أضف لقائمة المشوار",
-                                                    tint = ElAbedRoyalBlue
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = { onShareStore(place) },
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .testTag("directory_share_btn_${place.id}")
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Share,
-                                                    contentDescription = "مشاركة المحل",
-                                                    tint = ElAbedRoyalBlue
-                                                )
-                                            }
-                                            OutlinedButton(
-                                                onClick = { onNavigateOnMap(place.id) },
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                                                modifier = Modifier
-                                                    .height(48.dp)
-                                                    .testTag("directory_map_btn_${place.id}")
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.LocationOn,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("خريطة", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                                            }
+                                        if (rowItems.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
                                         }
                                     }
                                 }
                             }
+
+                            if (searchQuery.isNotBlank() && filteredPlaces.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    SectionHeader(
+                                        title = "أماكن توفر طلبك (${filteredPlaces.size})",
+                                        subtitle = "متاجر ومرافق مطابقة لكلمة البحث"
+                                    )
+                                }
+                                items(filteredPlaces, key = { "match_${it.id}" }) { place ->
+                                    BrandPlaceDirectoryCard(
+                                        place = place,
+                                        storeOffers = offersByStore[place.id].orEmpty(),
+                                        onOpenStoreDetail = { onOpenStoreDetail(place.id) },
+                                        onNavigateOnMap = { onNavigateOnMap(place.id) },
+                                        onAddToTrip = {
+                                            onAddStoreToTrip(place)
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("تمت إضافة ${place.nameAr} لقائمة المشوار")
+                                            }
+                                        },
+                                        onShareStore = { onShareStore(place) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (filteredPlaces.isEmpty()) {
+                        EmptySearchPlaceholder(
+                            onClear = {
+                                searchQuery = ""
+                                selectedCategory = null
+                                selectedFloorFilter = -1
+                            }
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 92.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                SectionHeader(
+                                    title = "البراندات والأماكن (${filteredPlaces.size})",
+                                    subtitle = "المحلات، المطاعم، البنوك والمرافق بشعاراتها"
+                                )
+                            }
+                            items(filteredPlaces, key = { it.id }) { place ->
+                                BrandPlaceDirectoryCard(
+                                    place = place,
+                                    storeOffers = offersByStore[place.id].orEmpty(),
+                                    onOpenStoreDetail = { onOpenStoreDetail(place.id) },
+                                    onNavigateOnMap = { onNavigateOnMap(place.id) },
+                                    onAddToTrip = {
+                                        onAddStoreToTrip(place)
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("تمت إضافة ${place.nameAr} لقائمة المشوار")
+                                        }
+                                    },
+                                    onShareStore = { onShareStore(place) }
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptySearchPlaceholder(
+    onClear: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(ElAbedRoyalBlueContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.StoreMallDirectory,
+                    contentDescription = null,
+                    tint = ElAbedRoyalBlue,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+            Text(
+                text = "لا توجد نتائج مطابقة للبحث",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "جرّب البحث بكلمة أخرى أو أعد ضبط الفلاتر",
+                style = MaterialTheme.typography.bodySmall,
+                color = ElAbedTextSecondary
+            )
+            Surface(
+                onClick = onClear,
+                shape = RoundedCornerShape(50),
+                color = ElAbedRoyalBlue
+            ) {
+                Text(
+                    text = "عرض الكل",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                )
             }
         }
     }

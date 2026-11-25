@@ -1,6 +1,8 @@
 package com.example
 
 import com.example.data.local.SeedCatalogData
+import com.example.data.model.MallPlaceCategory
+import com.example.data.search.MallProductCatalog
 import com.example.data.search.MallSearchEngine
 import com.example.data.search.MallTaskPlaceSuggester
 import com.example.data.search.SearchPathTab
@@ -66,5 +68,34 @@ class MallSearchEngineTest {
         )
         assertTrue(suggestions.isNotEmpty())
         assertTrue(suggestions.first().store.id == "samsung")
+    }
+
+    @Test
+    fun product_catalog_filters_meat_and_samsung_products() {
+        val meatResults = MallProductCatalog.filterProducts(
+            rawQuery = "لحوم",
+            selectedCategory = null,
+            selectedFloor = -1
+        )
+        assertTrue(meatResults.any { it.id == "prod_meat" && it.storeId == "hypermarket" })
+
+        val samsungResults = MallProductCatalog.filterProducts(
+            rawQuery = "سامسونج",
+            selectedCategory = MallPlaceCategory.ELECTRONICS,
+            selectedFloor = 0
+        )
+        assertTrue(samsungResults.any { it.id == "prod_tvs" })
+        assertTrue(samsungResults.any { it.id == "prod_samsung_phones" })
+    }
+
+    @Test
+    fun product_catalog_filters_by_floor_correctly() {
+        val firstFloorOnly = MallProductCatalog.filterProducts(
+            rawQuery = "",
+            selectedCategory = null,
+            selectedFloor = 1
+        )
+        assertTrue(firstFloorOnly.isNotEmpty())
+        assertTrue(firstFloorOnly.all { it.floorLabelAr == "الأول" })
     }
 }

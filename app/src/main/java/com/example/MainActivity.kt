@@ -314,13 +314,6 @@ fun ElAbedMallApp(
                 ) {
                     composable<HomeRoute> {
                         HomeScreen(
-                            places = places,
-                            offers = interestMatchedOffers,
-                            events = events,
-                            promoBanner = promoBanner,
-                            selectedInterests = notifPrefs.selectedInterests,
-                            tripStopCount = orderedTripStops.size,
-                            shoppingTaskCount = shoppingTasks.size,
                             unreadNotifications = unreadCount,
                             onOpenDirectory = { navigateTopLevel(DirectoryRoute()) },
                             onSearchWithQuery = { q, tabName ->
@@ -331,28 +324,16 @@ fun ElAbedMallApp(
                                     )
                                 )
                             },
+                            onOpenCategory = { category ->
+                                navController.navigate(
+                                    DirectoryRoute(initialCategory = category.name)
+                                )
+                            },
                             onOpenIndoorMap = { targetId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
                             },
-                            onOpenAccessMap = { navController.navigate(AccessRoute) },
-                            onOpenOffers = { navController.navigate(OffersEventsRoute(initialTab = 0)) },
-                            onOpenEvents = { navController.navigate(OffersEventsRoute(initialTab = 1)) },
                             onOpenNotifications = { navController.navigate(NotificationsRoute) },
-                            onOpenVisitorServices = { navController.navigate(VisitorServicesRoute) },
-                            onOpenTripPlanner = { navController.navigate(TripPlannerRoute) },
-                            onOpenStoreDetail = { storeId ->
-                                navController.navigate(StoreDetailRoute(storeId = storeId))
-                            },
-                            onToggleInterest = viewModel::toggleVisitorInterest,
-                            onShareOffer = { offer ->
-                                val store = places.firstOrNull { it.id == offer.storeId }
-                                pendingShareContent = MallShareContent.forOffer(offer, store)
-                            },
-                            onShareStore = { store ->
-                                pendingShareContent = MallShareContent.forStore(store)
-                            },
-                            onAddOfferToTrip = viewModel::addOfferToTrip,
-                            onAddStoreToTrip = viewModel::addStoreToTrip
+                            onOpenMoreHub = { navigateTopLevel(MoreHubRoute) }
                         )
                     }
 

@@ -105,15 +105,15 @@ fun StoreLogoBadge(
     size: Dp = 46.dp
 ) {
     val usesMallLogo = store.id in setOf(
-        "hypermarket", "elabed_cafe", "furniture_home", "pingo_toys",
-        "fountain_plaza", "customer_service", "gate_1"
+        "hypermarket", "elabed_cafe", "customer_service", "gate_1"
     )
     if (usesMallLogo) {
         Surface(
             modifier = modifier.size(size),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             color = Color.White,
-            border = BorderStroke(1.dp, ElAbedOutline)
+            border = BorderStroke(1.2.dp, ElAbedRoyalBlue.copy(alpha = 0.25f)),
+            shadowElevation = 1.dp
         ) {
             Image(
                 painter = painterResource(id = R.drawable.logo_elabed_mall),
@@ -125,42 +125,53 @@ fun StoreLogoBadge(
             )
         }
     } else {
-        val (bgColor, fgColor) = when (store.category) {
-            MallPlaceCategory.ELECTRONICS -> ElAbedRoyalBlueContainer to ElAbedRoyalBlue
-            MallPlaceCategory.DINING -> ElAbedWarmOrangeContainer to Color(0xFF9C4B00)
-            MallPlaceCategory.ENTERTAINMENT -> ElAbedVibrantGreenContainer to ElAbedVibrantGreen
-            MallPlaceCategory.FASHION -> Color(0xFFF3E5F5) to Color(0xFF6A1B9A)
-            MallPlaceCategory.SERVICES -> ElAbedTurquoiseContainer to Color(0xFF005B52)
-            else -> ElAbedRoyalBlueContainer to ElAbedRoyalBlue
+        val (bgColor, fgColor, brandMonogram) = when (store.id) {
+            "kfc_toukh" -> Triple(Color(0xFFC81E1E), Color.White, "KFC")
+            "pizza_primo" -> Triple(Color(0xFFEA580C), Color.White, "PRIMO")
+            "hadithah_cafe" -> Triple(Color(0xFF78350F), Color.White, "قهوة")
+            "cafe_terrace" -> Triple(Color(0xFF0F766E), Color.White, "تراس")
+            "samsung" -> Triple(Color(0xFF1428A0), Color.White, "SAM")
+            "tecno_store" -> Triple(Color(0xFF0284C7), Color.White, "TECNO")
+            "united_electronics" -> Triple(Color(0xFF1E40AF), Color.White, "UE")
+            "vodafone" -> Triple(Color(0xFFE60000), Color.White, "VF")
+            "banque_misr" -> Triple(Color(0xFF881337), Color.White, "BM")
+            "alex_bank" -> Triple(Color(0xFF0369A1), Color.White, "ALEX")
+            "abk_atm" -> Triple(Color(0xFF1E3A8A), Color.White, "ABK")
+            "aaib_atm" -> Triple(Color(0xFF0E7490), Color.White, "AAIB")
+            "faisal_bank" -> Triple(Color(0xFF15803D), Color.White, "FIB")
+            "banque_du_caire" -> Triple(Color(0xFFD97706), Color.White, "BDC")
+            "pingo_toys" -> Triple(Color(0xFF16A34A), Color.White, "PINGO")
+            "tutu_kids" -> Triple(Color(0xFF7C3AED), Color.White, "TUTU")
+            "kids_fashion" -> Triple(Color(0xFFDB2777), Color.White, "KIDS")
+            "perfumes_oud" -> Triple(Color(0xFFB45309), Color.White, "OUD")
+            "furniture_home" -> Triple(Color(0xFF0D9488), Color.White, "HOME")
+            else -> when (store.category) {
+                MallPlaceCategory.ELECTRONICS -> Triple(ElAbedRoyalBlue, Color.White, null)
+                MallPlaceCategory.DINING -> Triple(ElAbedWarmOrange, Color.White, null)
+                MallPlaceCategory.ENTERTAINMENT -> Triple(ElAbedVibrantGreen, Color.White, null)
+                MallPlaceCategory.FASHION -> Triple(Color(0xFFC026D3), Color.White, null)
+                MallPlaceCategory.FURNITURE -> Triple(Color(0xFF0F766E), Color.White, null)
+                MallPlaceCategory.SERVICES -> Triple(ElAbedTurquoise, Color.White, null)
+                else -> Triple(Color(0xFF475569), Color.White, null)
+            }
         }
-        val brandMonogram = when (store.id) {
-            "kfc_toukh" -> "KFC"
-            "samsung" -> "SAM"
-            "tecno_store" -> "TEC"
-            "vodafone" -> "VF"
-            "banque_misr" -> "BM"
-            "alex_bank" -> "AB"
-            "abk_atm" -> "ABK"
-            "aaib_atm" -> "AAIB"
-            "faisal_bank" -> "FIB"
-            "banque_du_caire" -> "BDC"
-            "pizza_primo" -> "PP"
-            "tutu_kids" -> "TK"
-            else -> null
-        }
+
         Surface(
             modifier = modifier.size(size),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             color = bgColor,
-            border = BorderStroke(1.dp, fgColor.copy(alpha = 0.22f))
+            shadowElevation = 1.dp
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 if (brandMonogram != null) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = categoryIcon(store.category),
                             contentDescription = store.nameAr,
-                            tint = fgColor,
+                            tint = fgColor.copy(alpha = 0.92f),
                             modifier = Modifier.size(16.dp)
                         )
                         Text(

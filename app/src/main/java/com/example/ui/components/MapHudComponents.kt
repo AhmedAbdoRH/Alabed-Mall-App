@@ -268,10 +268,11 @@ fun MapArrivalCard(
 @Composable
 fun MapDestinationPickerSheet(
     places: List<StoreEntity>,
+    initialQuery: String = "",
     onDismiss: () -> Unit,
     onDestinationSelected: (StoreEntity) -> Unit
 ) {
-    var filterQuery by remember { mutableStateOf("") }
+    var filterQuery by remember(initialQuery) { mutableStateOf(initialQuery) }
     val filtered = remember(places, filterQuery) {
         places.filter {
             filterQuery.isBlank() ||

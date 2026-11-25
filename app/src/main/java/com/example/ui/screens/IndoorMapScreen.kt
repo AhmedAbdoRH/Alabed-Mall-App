@@ -1,19 +1,26 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,17 +29,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Gamepad
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stairs
 import androidx.compose.material.icons.filled.ZoomOutMap
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -61,6 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -75,12 +80,14 @@ import com.example.ui.components.IndoorMapCanvas
 import com.example.ui.components.MapArrivalCard
 import com.example.ui.components.MapDestinationPickerSheet
 import com.example.ui.components.MapInspectedPlaceCard
-import com.example.ui.components.MapMiniRadarBadge
 import com.example.ui.components.OpenStatusChip
 import com.example.ui.components.VirtualJoystick
+import com.example.ui.components.clampPanOffset
 import com.example.ui.components.computeMapTransform
-import com.example.ui.theme.StatusOpenContainer
-import com.example.ui.theme.StatusOpenGreen
+import com.example.ui.theme.ElAbedOutline
+import com.example.ui.theme.ElAbedRoyalBlue
+import com.example.ui.theme.ElAbedRoyalBlueContainer
+import com.example.ui.theme.ElAbedSurfaceVariant
 import com.example.ui.viewmodel.IndoorMapUiState
 
 @Composable
@@ -101,12 +108,14 @@ fun IndoorMapScreen(
     onOpenStoreDetail: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     // Full-screen game camera focused smoothly closer to the hero explorer (1.42x)
     var zoomScale by remember { mutableFloatStateOf(1.42f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var followAvatar by remember { mutableStateOf(true) }
-    var isEveningMode by remember { mutableStateOf(false) }
     var showDestinationPicker by remember { mutableStateOf(false) }
+    var pickerInitialQuery by remember { mutableStateOf("") }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -114,6 +123,51 @@ fun IndoorMapScreen(
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         onLocationPermissionResult(granted)
+    }
+
+    val voiceSearchLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spoken = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.trim()
+            if (!spoken.isNullOrBlank()) {
+                pickerInitialQuery = spoken
+                showDestinationPicker = true
+            }
+        }
+    }
+
+    fun launchMapVoiceSearch() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-EG")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث باسم المحل أو الوجهة داخل المول...")
+        }
+        try {
+            voiceSearchLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(
+                context,
+                "البحث الصوتي غير متوفر على هذا الجهاز، يمكنك البحث بالكتابة.",
+                Toast.LENGTH_SHORT
+            ).show()
+            pickerInitialQuery = ""
+            showDestinationPicker = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (mapState.movementMode == MapMovementMode.LIVE_GUIDANCE && !mapState.liveGpsStatus.hasPermission) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
     }
 
     LaunchedEffect(initialTargetPlaceId) {
@@ -142,7 +196,6 @@ fun IndoorMapScreen(
             with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
         }
 
-        // Smooth camera follow clamped within world bounds so the map always fills the entire screen
         LaunchedEffect(
             mapState.avatar.x,
             mapState.avatar.y,
@@ -158,14 +211,14 @@ fun IndoorMapScreen(
                     x = viewportSize.width * 0.5f - avBaseX,
                     y = viewportSize.height * 0.56f - avBaseY
                 )
-                panOffset = com.example.ui.components.clampPanOffset(viewportSize, zoomScale, desired)
+                panOffset = clampPanOffset(viewportSize, zoomScale, desired)
             }
         }
 
-        // 1. Wide Uncropped 2.5D Illustrated Game World Canvas
+        // 1. Daylight 2.5D Illustrated Game World Canvas (No night mode)
         IndoorMapCanvas(
             selectedFloor = mapState.selectedFloor,
-            isEveningMode = isEveningMode,
+            isEveningMode = false,
             places = places,
             avatar = mapState.avatar,
             routePlan = mapState.routePlan,
@@ -183,25 +236,25 @@ fun IndoorMapScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2. Top Official Brand & Game HUD Controls
+        // 2. Clean Top HUD: Brand + GPS-First Mode Switcher + Floor Switcher + Wide Search & Voice Bar
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Surface(
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                color = Color.White.copy(alpha = 0.96f),
                 tonalElevation = 4.dp,
-                shadowElevation = 4.dp
+                shadowElevation = 5.dp
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Brand Row: Official Logo + Name + Open Status + Day/Evening Lighting
+                    // Brand Row (no night mode toggle)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,37 +287,20 @@ fun IndoorMapScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "الخريطة التفاعلية الذكية",
+                                    text = "الخريطة التفاعلية",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            OpenStatusChip()
-                            FilledTonalIconButton(
-                                onClick = { isEveningMode = !isEveningMode },
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .testTag("map_lighting_toggle")
-                            ) {
-                                Icon(
-                                    imageVector = if (isEveningMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                                    contentDescription = if (isEveningMode) "الوضع النهاري" else "الوضع المسائي",
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
+                        OpenStatusChip()
                     }
 
-                    // Movement Mode Segmented Switcher
+                    // Movement Mode Switcher (GPS first/primary, Manual second)
                     val modes = listOf(
-                        MapMovementMode.MANUAL_EXPLORE,
-                        MapMovementMode.LIVE_GUIDANCE
+                        MapMovementMode.LIVE_GUIDANCE,
+                        MapMovementMode.MANUAL_EXPLORE
                     )
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         modes.forEachIndexed { idx, mode ->
@@ -282,22 +318,29 @@ fun IndoorMapScreen(
                                     }
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index = idx, count = modes.size),
+                                colors = SegmentedButtonDefaults.colors(
+                                    activeContainerColor = ElAbedRoyalBlueContainer,
+                                    activeContentColor = ElAbedRoyalBlue,
+                                    inactiveContainerColor = Color.White,
+                                    inactiveContentColor = MaterialTheme.colorScheme.onSurface
+                                ),
                                 icon = {
                                     Icon(
-                                        imageVector = if (mode == MapMovementMode.MANUAL_EXPLORE) {
-                                            Icons.Filled.Gamepad
-                                        } else {
+                                        imageVector = if (mode == MapMovementMode.LIVE_GUIDANCE) {
                                             Icons.Filled.MyLocation
+                                        } else {
+                                            Icons.Filled.Gamepad
                                         },
                                         contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 },
                                 modifier = Modifier.testTag("map_mode_${mode.name}")
                             ) {
                                 Text(
                                     text = mode.labelAr,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (mapState.movementMode == mode) FontWeight.Bold else FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -305,13 +348,71 @@ fun IndoorMapScreen(
                         }
                     }
 
-                    // Floor Switcher + Brand Warm Orange CTA Destination Picker
+                    // Wide, Tall Search Bar with Voice Search right underneath
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                pickerInitialQuery = ""
+                                showDestinationPicker = true
+                            }
+                            .testTag("map_pick_destination_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        color = ElAbedSurfaceVariant,
+                        border = BorderStroke(1.dp, ElAbedOutline),
+                        shadowElevation = 1.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 14.dp, end = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "بحث",
+                                tint = ElAbedRoyalBlue,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "ابحث عن محل، مطعم أو وجهة...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = ElAbedRoyalBlueContainer
+                            ) {
+                                IconButton(
+                                    onClick = { launchMapVoiceSearch() },
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .testTag("map_voice_search_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Mic,
+                                        contentDescription = "البحث بالصوت",
+                                        tint = ElAbedRoyalBlue,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Clean Floor Switcher Chips
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val floors = listOf(0 to "الأرضي", 1 to "الأول")
+                        val floors = listOf(0 to "الدور الأرضي", 1 to "الدور الأول")
                         floors.forEach { (floorIdx, label) ->
                             val hasAvatar = mapState.avatar.floor == floorIdx
                             val hasDest = mapState.routePlan?.destinationStore?.floor == floorIdx
@@ -325,87 +426,21 @@ fun IndoorMapScreen(
                                 label = {
                                     Text(
                                         text = "$label$suffix",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (mapState.selectedFloor == floorIdx) FontWeight.Bold else FontWeight.Medium,
                                         maxLines = 1
                                     )
                                 },
-                                modifier = Modifier.testTag("map_floor_chip_$floorIdx")
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("map_floor_chip_$floorIdx")
                             )
                         }
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        Button(
-                            onClick = { showDestinationPicker = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiary,
-                                contentColor = Color.White
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.testTag("map_pick_destination_button")
-                        ) {
-                            Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("ابحث عن وجهة", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        }
                     }
                 }
             }
 
-            // Live Compass & Nearby Landmark Radar Strip
-            MapMiniRadarBadge(
-                avatar = mapState.avatar,
-                selectedFloor = mapState.selectedFloor,
-                places = places
-            )
-
-            // Live GPS Status strip when in Live Guidance Mode
-            AnimatedVisibility(visible = mapState.movementMode == MapMovementMode.LIVE_GUIDANCE) {
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = if (mapState.liveGpsStatus.isInsideMallBounds) {
-                        StatusOpenContainer
-                    } else {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = mapState.liveGpsStatus.statusMessageAr,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (mapState.liveGpsStatus.isInsideMallBounds) {
-                                StatusOpenGreen
-                            } else {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (!mapState.liveGpsStatus.hasPermission) {
-                            FilledTonalButton(
-                                onClick = {
-                                    locationPermissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
-                                },
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text("منح الإذن", style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Turn-by-turn Guidance Card when route is active
+            // Active Route Turn-by-Turn Guidance Card (only shown when navigating to a target)
             val activePlan = mapState.routePlan
             AnimatedVisibility(visible = activePlan != null && !mapState.hasArrived) {
                 activePlan?.let { plan ->
@@ -609,6 +644,7 @@ fun IndoorMapScreen(
     if (showDestinationPicker) {
         MapDestinationPickerSheet(
             places = places,
+            initialQuery = pickerInitialQuery,
             onDismiss = { showDestinationPicker = false },
             onDestinationSelected = { place ->
                 showDestinationPicker = false

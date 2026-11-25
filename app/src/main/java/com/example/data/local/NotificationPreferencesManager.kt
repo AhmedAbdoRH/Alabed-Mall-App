@@ -54,7 +54,7 @@ class NotificationPreferencesManager(private val context: Context) {
         context.mallPreferencesDataStore.data.map { prefs ->
             val raw = prefs[Keys.DEFAULT_MAP_MODE]
             MapMovementMode.entries.firstOrNull { it.name == raw }
-                ?: MapMovementMode.MANUAL_EXPLORE
+                ?: MapMovementMode.LIVE_GUIDANCE
         }
 
     val promoBannerConfig: Flow<PromoBannerConfig> =

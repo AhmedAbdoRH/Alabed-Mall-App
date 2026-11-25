@@ -51,7 +51,7 @@ data class OrderedTripStop(
 
 data class IndoorMapUiState(
     val selectedFloor: Int = 0,
-    val movementMode: MapMovementMode = MapMovementMode.MANUAL_EXPLORE,
+    val movementMode: MapMovementMode = MapMovementMode.LIVE_GUIDANCE,
     val avatar: AvatarState = AvatarState(),
     val selectedDestinationId: String? = null,
     val inspectedPlaceId: String? = null,
@@ -143,6 +143,9 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repository.ensureSeeded()
+        }
+        if (locationClient.hasLocationPermission()) {
+            startLiveGpsTracking()
         }
         viewModelScope.launch {
             places.collectLatest { placeList ->
