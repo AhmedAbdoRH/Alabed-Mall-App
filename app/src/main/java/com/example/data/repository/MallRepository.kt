@@ -9,6 +9,7 @@ import com.example.data.model.MallNotificationEntity
 import com.example.data.model.MapMovementMode
 import com.example.data.model.OfferEntity
 import com.example.data.model.PromoBannerConfig
+import com.example.data.model.SavedOfferEntity
 import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
 import com.example.data.model.TripStopEntity
@@ -21,6 +22,7 @@ class MallRepository(
 ) {
     val places: Flow<List<StoreEntity>> = dao.observeAllPlaces()
     val offers: Flow<List<OfferEntity>> = dao.observeAllOffers()
+    val savedOffers: Flow<List<SavedOfferEntity>> = dao.observeSavedOffers()
     val events: Flow<List<EventEntity>> = dao.observeAllEvents()
     val notifications: Flow<List<MallNotificationEntity>> = dao.observeAllNotifications()
     val tickets: Flow<List<VisitorTicketEntity>> = dao.observeAllTickets()
@@ -46,7 +48,14 @@ class MallRepository(
     suspend fun deleteStore(id: String) = dao.deleteStoreById(id)
 
     suspend fun upsertOffer(offer: OfferEntity) = dao.upsertOffer(offer)
-    suspend fun deleteOffer(id: String) = dao.deleteOfferById(id)
+    suspend fun deleteOffer(id: String) {
+        dao.deleteOfferById(id)
+        dao.deleteSavedOfferById(id)
+    }
+
+    suspend fun getSavedOffer(offerId: String): SavedOfferEntity? = dao.getSavedOfferById(offerId)
+    suspend fun saveOffer(savedOffer: SavedOfferEntity) = dao.upsertSavedOffer(savedOffer)
+    suspend fun removeSavedOffer(offerId: String) = dao.deleteSavedOfferById(offerId)
 
     suspend fun upsertEvent(event: EventEntity) = dao.upsertEvent(event)
     suspend fun deleteEvent(id: String) = dao.deleteEventById(id)
@@ -74,7 +83,7 @@ class MallRepository(
     suspend fun setOpeningsNotifEnabled(enabled: Boolean) = prefsManager.setOpeningsEnabled(enabled)
     suspend fun setEventsNotifEnabled(enabled: Boolean) = prefsManager.setEventsEnabled(enabled)
     suspend fun setAlertsNotifEnabled(enabled: Boolean) = prefsManager.setAlertsEnabled(enabled)
-    suspend fun toggleInterest(categoryName: String) = prefsManager.toggleInterest(categoryName)
+    suspend fun toggleInterest(categoryName: String): Boolean = prefsManager.toggleInterest(categoryName)
     suspend fun setSelectedInterests(interests: Set<String>) = prefsManager.setSelectedInterests(interests)
     suspend fun setDefaultMapMode(mode: MapMovementMode) = prefsManager.setDefaultMapMode(mode)
     suspend fun savePromoBanner(config: PromoBannerConfig) = prefsManager.savePromoBanner(config)

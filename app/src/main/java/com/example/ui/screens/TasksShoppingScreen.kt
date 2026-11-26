@@ -28,8 +28,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.PlaylistAddCheck
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TaskAlt
@@ -39,6 +42,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -66,26 +70,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.data.map.HypermarketMapCatalog
 import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
 import com.example.data.search.MallTaskPlaceSuggester
-import com.example.ui.components.FloorPill
+import com.example.sharing.MallShareHelper
+import com.example.ui.components.HypermarketMapView
 import com.example.ui.components.StoreLogoBadge
-import com.example.ui.theme.ElAbedOutline
 import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedRoyalBlueContainer
 import com.example.ui.theme.ElAbedSurfaceVariant
 import com.example.ui.theme.ElAbedVibrantGreen
 import com.example.ui.theme.ElAbedVibrantGreenContainer
-import com.example.ui.theme.ElAbedWarmOrange
-import com.example.ui.theme.ElAbedWarmOrangeContainer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,7 +97,7 @@ fun TasksShoppingScreen(
     tasks: List<ShoppingTaskEntity>,
     places: List<StoreEntity>,
     onBack: () -> Unit,
-    onAddTask: (itemName: String, departmentTag: String, selectedStore: StoreEntity?) -> Unit,
+    onAddTask: (itemName: String, departmentTag: String, selectedStore: StoreEntity?, hypermarketSectionId: String?) -> Unit,
     onToggleTask: (Long, Boolean) -> Unit,
     onDeleteTask: (Long) -> Unit,
     onClearChecked: () -> Unit,
@@ -102,13 +105,24 @@ fun TasksShoppingScreen(
     onOpenIndoorMap: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var itemInput by remember { mutableStateOf("") }
     var selectedTaskType by remember { mutableStateOf("مشتريات") }
     var selectedStore by remember { mutableStateOf<StoreEntity?>(null) }
-    var filterTab by remember { mutableIntStateOf(0) } // 0 = الكل, 1 = قيد التنفيذ, 2 = تمت
+    var manualSectionId by remember { mutableStateOf<String?>(null) }
+    var filterTab by remember { mutableIntStateOf(0) } // 0 = الكل, 1 = متبقي, 2 = تمت
+    var viewMode by remember { mutableIntStateOf(0) } // 0 = القائمة, 1 = خريطة أقسام الهايبر
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val detectedSection = remember(itemInput, manualSectionId) {
+        HypermarketMapCatalog.resolveSectionForInput(
+            itemName = itemInput,
+            departmentTag = "",
+            explicitSectionId = manualSectionId
+        )
+    }
 
     val placeSuggestions = remember(itemInput, places) {
         MallTaskPlaceSuggester.suggestPlacesForTask(
@@ -219,9 +233,120 @@ fun TasksShoppingScreen(
                                 color = ElAbedVibrantGreen,
                                 trackColor = Color.White
                             )
+
+                            if (tasks.isNotEmpty()) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        val formatted = MallShareHelper.buildFormattedShoppingListText(tasks)
+                                        MallShareHelper.shareFormattedTextToWhatsApp(
+                                            context = context,
+                                            subject = "قائمة المهام والمشتريات - مول العابد",
+                                            formattedText = formatted
+                                        )
+                                    },
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = ElAbedVibrantGreen,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("tasks_share_whatsapp_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Share,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "مشاركة القائمة عبر واتساب",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+
+                // Segmented view mode switch: Shopping List vs Hypermarket Section Map
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = viewMode == 0,
+                            onClick = { viewMode = 0 },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.PlaylistAddCheck,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "القائمة المرتبة (${tasks.size})",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ElAbedRoyalBlue,
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("tasks_view_list")
+                        )
+                        FilterChip(
+                            selected = viewMode == 1,
+                            onClick = { viewMode = 1 },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Map,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "خريطة الهايبر (١٠ أقسام)",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ElAbedRoyalBlue,
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("tasks_view_hyper_map")
+                        )
+                    }
+                }
+
+                if (viewMode == 1) {
+                    item {
+                        HypermarketMapView(
+                            tasks = tasks,
+                            onQuickSelectSection = { section ->
+                                manualSectionId = section.id
+                                selectedStore = places.firstOrNull { it.id == "hypermarket" }
+                                viewMode = 0
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("تم اختيار قسم «${section.nameAr}» للإضافة")
+                                }
+                            }
+                        )
+                    }
+                } else {
 
                 // Add card
                 item {
@@ -270,17 +395,21 @@ fun TasksShoppingScreen(
 
                             val submit = {
                                 if (itemInput.isNotBlank()) {
-                                    val tag = selectedStore?.let {
-                                        "$selectedTaskType • ${it.category.labelAr}"
-                                    } ?: selectedTaskType
-                                    onAddTask(itemInput, tag, selectedStore)
-                                    val addedPlaceName = selectedStore?.nameAr
+                                    val chosenSection = detectedSection
+                                    val tag = when {
+                                        chosenSection != null -> "${chosenSection.routeOrder}. ${chosenSection.nameAr}"
+                                        selectedStore != null -> "$selectedTaskType • ${selectedStore!!.category.labelAr}"
+                                        else -> selectedTaskType
+                                    }
+                                    onAddTask(itemInput, tag, selectedStore, chosenSection?.id)
+                                    val addedPlaceName = chosenSection?.nameAr ?: selectedStore?.nameAr
                                     itemInput = ""
                                     selectedStore = null
+                                    manualSectionId = null
                                     scope.launch {
                                         snackbarHostState.showSnackbar(
                                             if (addedPlaceName != null) {
-                                                "تمت الإضافة وربطها بمكان: $addedPlaceName"
+                                                "تمت الإضافة والترتيب في قسم: $addedPlaceName"
                                             } else {
                                                 "تمت الإضافة إلى القائمة"
                                             }
@@ -395,6 +524,71 @@ fun TasksShoppingScreen(
                                         }
                                     }
                                 }
+                                Text(
+                                    text = if (detectedSection != null) {
+                                        "قسم الهايبر (مرتب حسب الخريطة): ${detectedSection.routeOrder}. ${detectedSection.nameAr}"
+                                    } else {
+                                        "قسم الهايبر ماركت (اختياري لترتيب خط السير)"
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (detectedSection != null) detectedSection.accentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(HypermarketMapCatalog.sections, key = { it.id }) { section ->
+                                        val isSecSelected = detectedSection?.id == section.id
+                                        FilterChip(
+                                            selected = isSecSelected,
+                                            onClick = {
+                                                manualSectionId = if (manualSectionId == section.id) null else section.id
+                                                if (manualSectionId != null) {
+                                                    selectedStore = places.firstOrNull { it.id == "hypermarket" }
+                                                }
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = "${section.routeOrder}. ${section.nameAr}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = if (isSecSelected) FontWeight.Bold else FontWeight.Medium
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = section.softBgColor,
+                                                selectedLabelColor = section.accentColor
+                                            ),
+                                            modifier = Modifier.testTag("hyper_chip_${section.id}")
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (tasks.any { HypermarketMapCatalog.sectionForTask(it) != null }) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = ElAbedVibrantGreenContainer.copy(alpha = 0.4f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Route,
+                                    contentDescription = null,
+                                    tint = ElAbedVibrantGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "القائمة مرتبة تلقائياً حسب مسار أقسام خريطة الهايبر (١ ← ١٠)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ElAbedVibrantGreen
+                                )
                             }
                         }
                     }
@@ -469,6 +663,7 @@ fun TasksShoppingScreen(
                 } else {
                     items(filteredTasks, key = { it.id }) { task ->
                         val linkedStore = task.storeId?.let { placeMap[it] }
+                        val mappedSection = HypermarketMapCatalog.sectionForTask(task)
                         Card(
                             shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(
@@ -499,19 +694,42 @@ fun TasksShoppingScreen(
                                         modifier = Modifier.weight(1f),
                                         verticalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
-                                        Text(
-                                            text = task.itemName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            textDecoration = if (task.isChecked) TextDecoration.LineThrough else null,
-                                            color = if (task.isChecked) {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            if (mappedSection != null) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = mappedSection.softBgColor
+                                                ) {
+                                                    Text(
+                                                        text = "${mappedSection.routeOrder}. ${mappedSection.nameAr}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = mappedSection.accentColor,
+                                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                                    )
+                                                }
                                             }
-                                        )
+                                            Text(
+                                                text = task.itemName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                textDecoration = if (task.isChecked) TextDecoration.LineThrough else null,
+                                                color = if (task.isChecked) {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
                                         Text(
-                                            text = task.departmentTag,
+                                            text = if (mappedSection != null) {
+                                                "${mappedSection.aisleLabelAr} • ${task.departmentTag}"
+                                            } else {
+                                                task.departmentTag
+                                            },
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -612,6 +830,7 @@ fun TasksShoppingScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

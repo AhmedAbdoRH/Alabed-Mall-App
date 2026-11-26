@@ -1,8 +1,12 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,16 +26,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AlarmOn
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +74,11 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.EventEntity
 import com.example.data.model.OfferEntity
+import com.example.notifications.MallNotificationHelper
+import com.example.notifications.OfferScheduleDateHelper
 import com.example.ui.components.FloorPill
+import com.example.ui.theme.ElAbedRoyalBlue
+import com.example.ui.theme.ElAbedRoyalBlueContainer
 import com.example.ui.theme.ElAbedVibrantGreen
 import com.example.ui.theme.ElAbedVibrantGreenContainer
 import kotlinx.coroutines.delay
@@ -73,18 +88,39 @@ import kotlinx.coroutines.launch
 fun OffersEventsScreen(
     offers: List<OfferEntity>,
     events: List<EventEntity>,
+    savedOfferIds: Set<String> = emptySet(),
     initialTab: Int = 0,
     onOpenStoreDetail: (String) -> Unit,
     onOpenIndoorMap: (String) -> Unit,
     onShareOffer: (OfferEntity) -> Unit = {},
     onAddOfferToTrip: (OfferEntity) -> Unit = {},
+    onToggleSaveOffer: (OfferEntity) -> Boolean = { true },
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 1)) }
+    var showSavedOnly by remember { mutableStateOf(false) }
     var copiedOfferId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                if (granted) {
+                    "تم تفعيل إذن الإشعارات وسيصلك التذكير قبل انتهاء العرض"
+                } else {
+                    "تم حفظ العرض داخل التطبيق — فعّل إذن الإشعارات لاحقاً لوصول تنبيه على الجهاز"
+                }
+            )
+        }
+    }
+
+    val displayedOffers = remember(offers, savedOfferIds, showSavedOnly) {
+        if (showSavedOnly) offers.filter { it.id in savedOfferIds } else offers
+    }
 
     androidx.compose.runtime.LaunchedEffect(copiedOfferId) {
         if (copiedOfferId != null) {
@@ -146,7 +182,62 @@ fun OffersEventsScreen(
                                     .clip(MaterialTheme.shapes.large)
                             )
                         }
-                        items(offers, key = { it.id }) { offer ->
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = !showSavedOnly,
+                                    onClick = { showSavedOnly = false },
+                                    label = { Text("كل العروض (${offers.size})", fontWeight = FontWeight.Bold) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = ElAbedRoyalBlueContainer,
+                                        selectedLabelColor = ElAbedRoyalBlue
+                                    ),
+                                    modifier = Modifier.testTag("offers_filter_all")
+                                )
+                                FilterChip(
+                                    selected = showSavedOnly,
+                                    onClick = { showSavedOnly = true },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (showSavedOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            "المحفوظة (${offers.count { it.id in savedOfferIds }})",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = ElAbedRoyalBlueContainer,
+                                        selectedLabelColor = ElAbedRoyalBlue
+                                    ),
+                                    modifier = Modifier.testTag("offers_filter_saved")
+                                )
+                            }
+                        }
+                        if (displayedOffers.isEmpty()) {
+                            item {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "لا توجد عروض محفوظة حالياً. اضغط «حفظ وتذكير» على أي عرض ليصلك تنبيه قبل انتهائه.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                        items(displayedOffers, key = { it.id }) { offer ->
+                            val isSaved = offer.id in savedOfferIds
                             Card(
                                 shape = MaterialTheme.shapes.medium,
                                 colors = CardDefaults.cardColors(
@@ -281,10 +372,80 @@ fun OffersEventsScreen(
                                         }
                                     }
 
+                                    if (isSaved) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = ElAbedVibrantGreenContainer.copy(alpha = 0.5f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.AlarmOn,
+                                                    contentDescription = null,
+                                                    tint = ElAbedVibrantGreen,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                val expiryDateText = if (offer.expiresAtMillis > 0L) {
+                                                    " • ينتهي ${OfferScheduleDateHelper.formatArabicDate(offer.expiresAtMillis)}"
+                                                } else ""
+                                                Text(
+                                                    text = "مجدول تذكير محلي قبل الانتهاء بيوم$expiryDateText",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = ElAbedVibrantGreen
+                                                )
+                                            }
+                                        }
+                                    }
+
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        Button(
+                                            onClick = {
+                                                val nowSaved = onToggleSaveOffer(offer)
+                                                if (nowSaved) {
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                                        !MallNotificationHelper.hasNotificationPermission(context)
+                                                    ) {
+                                                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                                    } else {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("تم حفظ العرض وجدولة تذكير محلي قبل انتهائه بيوم")
+                                                        }
+                                                    }
+                                                } else {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("تمت إزالة العرض من المحفوظات وإلغاء التذكير")
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isSaved) ElAbedVibrantGreen else ElAbedRoyalBlue,
+                                                contentColor = Color.White
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
+                                                .testTag("offer_save_btn_${offer.id}")
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = if (isSaved) "محفوظ ✓" else "حفظ وتذكير",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                         OutlinedButton(
                                             onClick = {
                                                 onAddOfferToTrip(offer)
@@ -301,17 +462,18 @@ fun OffersEventsScreen(
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("أضف للمشوار", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         }
-                                        FilledTonalButton(
-                                            onClick = { onShareOffer(offer) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(48.dp)
-                                                .testTag("offer_share_btn_${offer.id}")
-                                        ) {
-                                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("مشاركة بصورة", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        }
+                                    }
+
+                                    FilledTonalButton(
+                                        onClick = { onShareOffer(offer) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .testTag("offer_share_btn_${offer.id}")
+                                    ) {
+                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("مشاركة العرض", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }

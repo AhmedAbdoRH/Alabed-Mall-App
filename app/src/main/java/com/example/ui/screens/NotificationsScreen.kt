@@ -67,8 +67,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.data.local.NotificationPreferences
+import com.example.data.local.NotificationPreferencesManager
 import com.example.data.model.MallNotificationEntity
 import com.example.data.model.MallPlaceCategory
+import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedSurfaceVariant
 import com.example.ui.theme.ElAbedWarmOrange
 import com.example.ui.theme.ElAbedWarmOrangeContainer
@@ -86,7 +88,7 @@ fun NotificationsScreen(
     onToggleOpenings: (Boolean) -> Unit,
     onToggleEvents: (Boolean) -> Unit,
     onToggleAlerts: (Boolean) -> Unit,
-    onToggleInterest: (MallPlaceCategory) -> Unit = {},
+    onToggleInterest: (MallPlaceCategory) -> Boolean = { true },
     onSendTestNotification: () -> Boolean,
     onOpenLinkedTarget: (MallNotificationEntity) -> Unit,
     modifier: Modifier = Modifier
@@ -273,6 +275,11 @@ fun NotificationsScreen(
 
                 // Visitor Offer Interests Picker Card
                 item {
+                    val selectedCount = preferences.selectedInterests.size
+                    val maxInterests = NotificationPreferencesManager.MAX_VISITOR_INTERESTS
+                    val isAtLimit = selectedCount >= maxInterests
+                    var limitWarningMessage by remember { mutableStateOf<String?>(null) }
+
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -282,20 +289,58 @@ fun NotificationsScreen(
                             modifier = Modifier.padding(18.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = "اهتماماتك لإشعارات العروض",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "اهتماماتك لإشعارات العروض",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isAtLimit) ElAbedWarmOrangeContainer else MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = "$selectedCount / $maxInterests",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isAtLimit) Color(0xFF7D3B00) else ElAbedRoyalBlue,
+                                        modifier = Modifier
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            .testTag("notif_interest_count_badge")
+                                    )
+                                }
+                            }
                             Text(
                                 text = if (preferences.selectedInterests.isEmpty()) {
-                                    "لم تحدد اهتمامات بعد — تصلك حالياً جميع عروض المول. اختر أقسامك المفضلة للتخصيص:"
+                                    "لم تحدد اهتمامات بعد — يمكنك اختيار حتى $maxInterests أقسام مفضلة لتلقي عروضها بتواريخها:"
                                 } else {
-                                    "تصلك إشعارات العروض للأقسام المختارة (${preferences.selectedInterests.size}) وتظهر أولاً في الرئيسية."
+                                    "تصلك إشعارات محلية مجدولة لعروض الأقسام المختارة ($selectedCount من $maxInterests كحد أقصى)."
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (limitWarningMessage != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("notif_interest_limit_warning")
+                                ) {
+                                    Text(
+                                        text = limitWarningMessage!!,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -304,7 +349,21 @@ fun NotificationsScreen(
                                     val selected = cat.name in preferences.selectedInterests
                                     FilterChip(
                                         selected = selected,
-                                        onClick = { onToggleInterest(cat) },
+                                        onClick = {
+                                            val allowed = onToggleInterest(cat)
+                                            if (!allowed) {
+                                                val msg = "الحد الأقصى للاهتمامات هو $maxInterests أقسام فقط. أزل أحد الاختيارات أولاً."
+                                                limitWarningMessage = msg
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar(msg)
+                                                }
+                                            } else {
+                                                limitWarningMessage = null
+                                                if (!selected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !areSystemNotifsEnabled) {
+                                                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                                }
+                                            }
+                                        },
                                         label = {
                                             Text(
                                                 text = cat.labelAr,

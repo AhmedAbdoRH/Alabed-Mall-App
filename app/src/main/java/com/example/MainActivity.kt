@@ -148,6 +148,8 @@ fun ElAbedMallApp(
 
     val places by viewModel.places.collectAsStateWithLifecycle()
     val offers by viewModel.offers.collectAsStateWithLifecycle()
+    val savedOffers by viewModel.savedOffers.collectAsStateWithLifecycle()
+    val savedOfferIds = remember(savedOffers) { savedOffers.map { it.offerId }.toSet() }
     val interestMatchedOffers by viewModel.interestMatchedOffers.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
@@ -376,6 +378,7 @@ fun ElAbedMallApp(
                         StoreDetailScreen(
                             store = store,
                             storeOffers = storeOffers,
+                            savedOfferIds = savedOfferIds,
                             onBack = { navController.popBackStack() },
                             onOpenIndoorMap = { targetId ->
                                 navController.navigate(IndoorMapRoute(targetPlaceId = targetId))
@@ -387,6 +390,7 @@ fun ElAbedMallApp(
                                 pendingShareContent = MallShareContent.forOffer(offer, store)
                             },
                             onAddStoreToTrip = viewModel::addStoreToTrip,
+                            onToggleSaveOffer = viewModel::toggleSaveOffer,
                             onOpenCustomerService = { navController.navigate(VisitorServicesRoute) }
                         )
                     }
@@ -418,6 +422,7 @@ fun ElAbedMallApp(
                         OffersEventsScreen(
                             offers = interestMatchedOffers,
                             events = events,
+                            savedOfferIds = savedOfferIds,
                             initialTab = args.initialTab,
                             onOpenStoreDetail = { storeId ->
                                 navController.navigate(StoreDetailRoute(storeId = storeId))
@@ -429,7 +434,8 @@ fun ElAbedMallApp(
                                 val store = places.firstOrNull { it.id == offer.storeId }
                                 pendingShareContent = MallShareContent.forOffer(offer, store)
                             },
-                            onAddOfferToTrip = viewModel::addOfferToTrip
+                            onAddOfferToTrip = viewModel::addOfferToTrip,
+                            onToggleSaveOffer = viewModel::toggleSaveOffer
                         )
                     }
 
@@ -525,8 +531,8 @@ fun ElAbedMallApp(
                             tasks = shoppingTasks,
                             places = places,
                             onBack = { navController.popBackStack() },
-                            onAddTask = { itemName, departmentTag, selectedStore ->
-                                viewModel.addShoppingTask(itemName, departmentTag, selectedStore)
+                            onAddTask = { itemName, departmentTag, selectedStore, sectionId ->
+                                viewModel.addShoppingTask(itemName, departmentTag, selectedStore, sectionId)
                             },
                             onToggleTask = viewModel::toggleShoppingTask,
                             onDeleteTask = viewModel::deleteShoppingTask,
@@ -549,7 +555,8 @@ fun ElAbedMallApp(
                             onBack = { navController.popBackStack() },
                             onSaveStore = viewModel::saveStoreFromCms,
                             onDeleteStore = viewModel::deleteStore,
-                            onAddOffer = viewModel::addOfferFromCms,
+                            onSaveOffer = viewModel::saveOfferFromCms,
+                            onDeleteOffer = viewModel::deleteOffer,
                             onAddEvent = viewModel::addEventFromCms,
                             onBroadcastNotification = viewModel::broadcastNotificationFromCms,
                             onSavePromoBanner = viewModel::savePromoBannerFromAdmin,

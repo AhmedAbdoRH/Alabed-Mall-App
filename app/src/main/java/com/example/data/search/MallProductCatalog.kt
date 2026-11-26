@@ -332,11 +332,13 @@ object MallProductCatalog {
                 1 -> item.floorLabelAr == "الأول"
                 else -> true
             }
-            val matchesQuery = q.isBlank() ||
-                item.nameAr.contains(q, ignoreCase = true) ||
-                item.brandNameAr.contains(q, ignoreCase = true) ||
-                item.category.labelAr.contains(q, ignoreCase = true) ||
-                item.keywords.any { it.contains(q, ignoreCase = true) || q.contains(it, ignoreCase = true) }
+            val matchesQuery = q.isBlank() || ArabicSearchNormalizer.matchesQuery(
+                q,
+                item.nameAr,
+                item.brandNameAr,
+                item.category.labelAr,
+                *item.keywords.toTypedArray()
+            )
 
             matchesCat && matchesFloor && matchesQuery
         }

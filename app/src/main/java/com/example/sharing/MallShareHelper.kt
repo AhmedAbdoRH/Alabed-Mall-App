@@ -20,8 +20,10 @@ import android.text.TextPaint
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.R
+import com.example.data.map.HypermarketMapCatalog
 import com.example.data.map.MallFloorPlanGraph
 import com.example.data.model.OfferEntity
+import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
 import java.io.File
 import java.io.FileOutputStream
@@ -129,6 +131,81 @@ object MallShareHelper {
         }
 
         val chooser = Intent.createChooser(baseIntent, "مشاركة عبر...")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(chooser)
+        } catch (_: Exception) {
+            Toast.makeText(context, "لا يوجد تطبيق مشاركة متاح حالياً.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun buildFormattedShoppingListText(tasks: List<ShoppingTaskEntity>): String {
+        val sorted = HypermarketMapCatalog.sortTasksByMapOrder(tasks)
+        val pending = sorted.filter { !it.isChecked }
+        val completed = sorted.filter { it.isChecked }
+
+        return buildString {
+            appendLine("🛒 قائمة المهام والمشتريات — مول العابد")
+            appendLine("━━━━━━━━━━━━━━━━━━━━")
+            if (pending.isEmpty() && completed.isEmpty()) {
+                append("القائمة فارغة حالياً.")
+                return@buildString
+            }
+
+            if (pending.isNotEmpty()) {
+                appendLine("📌 مطلوب شراؤه (${pending.size}):")
+                pending.forEachIndexed { idx, task ->
+                    val section = HypermarketMapCatalog.sectionForTask(task)
+                    val sectionHint = section?.let { " [${it.routeOrder}. ${it.nameAr}]" } ?: ""
+                    val storeHint = task.storeNameAr?.takeIf { it.isNotBlank() }?.let { " — $it" } ?: ""
+                    appendLine("${idx + 1}. ⬜ ${task.itemName}$sectionHint$storeHint")
+                }
+            }
+
+            if (completed.isNotEmpty()) {
+                if (pending.isNotEmpty()) appendLine()
+                appendLine("✅ تم إنجازه (${completed.size}):")
+                completed.forEach { task ->
+                    appendLine("• ✔️ ${task.itemName}")
+                }
+            }
+        }.trimEnd()
+    }
+
+    fun shareFormattedTextToWhatsApp(
+        context: Context,
+        subject: String,
+        formattedText: String
+    ) {
+        if (formattedText.isBlank()) {
+            Toast.makeText(context, "القائمة فارغة للمشاركة.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val baseIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, formattedText)
+        }
+
+        val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
+        val installedPkg = packages.firstOrNull { isPackageInstalled(context, it) }
+        if (installedPkg != null) {
+            val targeted = Intent(baseIntent).apply { setPackage(installedPkg) }
+            try {
+                context.startActivity(targeted)
+                return
+            } catch (_: Exception) {
+                // Fallback to system chooser
+            }
+        } else {
+            Toast.makeText(
+                context,
+                "تطبيق واتساب غير مثبت على الجهاز، تم فتح قائمة المشاركة العامة.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        val chooser = Intent.createChooser(baseIntent, "مشاركة القائمة عبر...")
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(chooser)

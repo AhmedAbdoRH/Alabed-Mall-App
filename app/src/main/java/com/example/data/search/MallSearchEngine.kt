@@ -135,8 +135,12 @@ object MallSearchEngine {
         return filtered
             .sortedWith(
                 compareByDescending<StoreEntity> {
-                    it.nameAr.startsWith(normalizedQ, ignoreCase = true) ||
-                        it.nameEn.startsWith(normalizedQ, ignoreCase = true)
+                    val normNameAr = ArabicSearchNormalizer.normalize(it.nameAr, stripDefiniteArticle = true)
+                    val normQ = ArabicSearchNormalizer.normalize(normalizedQ, stripDefiniteArticle = true)
+                    normQ.isNotBlank() && (
+                        normNameAr.startsWith(normQ) ||
+                            it.nameEn.startsWith(normalizedQ, ignoreCase = true)
+                        )
                 }.thenByDescending { it.isFeatured }
                     .thenBy { it.floor }
             )
@@ -163,22 +167,28 @@ object MallSearchEngine {
         query: String,
         searchTab: SearchPathTab
     ): Boolean {
-        val brandMatch = place.nameAr.contains(query, ignoreCase = true) ||
-            place.nameEn.contains(query, ignoreCase = true) ||
-            place.zoneAr.contains(query, ignoreCase = true)
+        val brandMatch = ArabicSearchNormalizer.matchesQuery(
+            query,
+            place.nameAr,
+            place.nameEn,
+            place.zoneAr
+        )
 
-        val productMatch = place.descriptionAr.contains(query, ignoreCase = true) ||
-            place.category.labelAr.contains(query, ignoreCase = true) ||
-            storeOffers.any {
-                it.titleAr.contains(query, ignoreCase = true) ||
-                    it.descriptionAr.contains(query, ignoreCase = true) ||
-                    it.discountBadge.contains(query, ignoreCase = true)
-            }
+        val offerFields = storeOffers.flatMap {
+            listOf(it.titleAr, it.descriptionAr, it.discountBadge)
+        }.toTypedArray()
+
+        val productMatch = ArabicSearchNormalizer.matchesQuery(
+            query,
+            place.descriptionAr,
+            place.category.labelAr,
+            *offerFields
+        )
 
         return when (searchTab) {
             SearchPathTab.ALL -> brandMatch || productMatch
-            SearchPathTab.BRANDS -> brandMatch || place.category.labelAr.contains(query, ignoreCase = true)
-            SearchPathTab.PRODUCTS -> productMatch || place.nameAr.contains(query, ignoreCase = true)
+            SearchPathTab.BRANDS -> brandMatch || ArabicSearchNormalizer.matchesQuery(query, place.category.labelAr)
+            SearchPathTab.PRODUCTS -> productMatch || ArabicSearchNormalizer.matchesQuery(query, place.nameAr)
         }
     }
 }

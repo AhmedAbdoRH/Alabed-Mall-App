@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.MallDatabase
 import com.example.data.local.NotificationPreferences
 import com.example.data.local.NotificationPreferencesManager
+import com.example.data.map.HypermarketMapCatalog
 import com.example.data.map.MallFloorPlanGraph
 import com.example.data.model.AvatarState
 import com.example.data.model.EventEntity
@@ -18,6 +19,7 @@ import com.example.data.model.MapMovementMode
 import com.example.data.model.NotificationCategory
 import com.example.data.model.OfferEntity
 import com.example.data.model.PromoBannerConfig
+import com.example.data.model.SavedOfferEntity
 import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
 import com.example.data.model.TripStopEntity
@@ -26,6 +28,8 @@ import com.example.data.repository.MallRepository
 import com.example.location.LocationStreamEvent
 import com.example.location.MallLocationClient
 import com.example.notifications.MallNotificationHelper
+import com.example.notifications.MallNotificationScheduler
+import com.example.notifications.OfferScheduleDateHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -74,6 +79,9 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
     val offers: StateFlow<List<OfferEntity>> = repository.offers
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val savedOffers: StateFlow<List<SavedOfferEntity>> = repository.savedOffers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val events: StateFlow<List<EventEntity>> = repository.events
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -93,6 +101,7 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val shoppingTasks: StateFlow<List<ShoppingTaskEntity>> = repository.shoppingTasks
+        .map { HypermarketMapCatalog.sortTasksByMapOrder(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val promoBanner: StateFlow<PromoBannerConfig> = repository.promoBannerConfig
@@ -158,7 +167,24 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        viewModelScope.launch {
+            combine(places, offers, events, notificationPreferences) { p, o, e, prefs ->
+                Quad(p, o, e, prefs)
+            }.collectLatest { (p, o, e, prefs) ->
+                if (p.isNotEmpty()) {
+                    MallNotificationScheduler.syncInterestAndDateSchedules(
+                        context = getApplication(),
+                        places = p,
+                        offers = o,
+                        events = e,
+                        prefs = prefs
+                    )
+                }
+            }
+        }
     }
+
+    private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     private fun isCategoryEnabled(category: NotificationCategory, prefs: NotificationPreferences): Boolean {
         return when (category) {
@@ -483,12 +509,42 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setAlertsNotifEnabled(enabled) }
     }
 
-    fun toggleVisitorInterest(category: MallPlaceCategory) {
+    fun toggleVisitorInterest(category: MallPlaceCategory): Boolean {
+        val current = notificationPreferences.value.selectedInterests
+        if (category.name !in current && current.size >= NotificationPreferencesManager.MAX_VISITOR_INTERESTS) {
+            return false
+        }
         viewModelScope.launch { repository.toggleInterest(category.name) }
+        return true
     }
 
     fun setVisitorInterests(categories: Set<String>) {
         viewModelScope.launch { repository.setSelectedInterests(categories) }
+    }
+
+    fun toggleSaveOffer(offer: OfferEntity): Boolean {
+        val alreadySaved = savedOffers.value.any { it.offerId == offer.id }
+        return if (alreadySaved) {
+            removeSavedOffer(offer.id)
+            false
+        } else {
+            val expiresAt = OfferScheduleDateHelper.resolveExpiryMillis(offer)
+            val saved = SavedOfferEntity(
+                offerId = offer.id,
+                storeId = offer.storeId,
+                storeNameAr = offer.storeNameAr,
+                titleAr = offer.titleAr,
+                expiresAtMillis = expiresAt
+            )
+            MallNotificationScheduler.scheduleSavedOfferExpiryReminder(getApplication(), saved)
+            viewModelScope.launch { repository.saveOffer(saved) }
+            true
+        }
+    }
+
+    fun removeSavedOffer(offerId: String) {
+        MallNotificationScheduler.cancelSavedOfferExpiryReminder(getApplication(), offerId)
+        viewModelScope.launch { repository.removeSavedOffer(offerId) }
     }
 
     fun sendTestNotification(title: String, body: String): Boolean {
@@ -594,20 +650,31 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
     fun addShoppingTask(
         itemName: String,
         departmentTag: String,
-        store: StoreEntity? = null
+        store: StoreEntity? = null,
+        hypermarketSectionId: String? = null
     ) {
         val trimmed = itemName.trim()
         if (trimmed.isEmpty()) return
+        val resolvedSection = if (store == null || store.id == "hypermarket") {
+            HypermarketMapCatalog.resolveSectionForInput(
+                itemName = trimmed,
+                departmentTag = departmentTag,
+                explicitSectionId = hypermarketSectionId
+            )
+        } else {
+            hypermarketSectionId?.let { HypermarketMapCatalog.sectionById(it) }
+        }
         viewModelScope.launch {
             repository.insertShoppingTask(
                 ShoppingTaskEntity(
                     itemName = trimmed,
                     departmentTag = departmentTag.trim().ifEmpty {
-                        store?.category?.labelAr ?: "عام"
+                        resolvedSection?.nameAr ?: store?.category?.labelAr ?: "عام"
                     },
-                    storeId = store?.id,
-                    storeNameAr = store?.nameAr,
-                    floor = store?.floor
+                    storeId = store?.id ?: if (resolvedSection != null) "hypermarket" else null,
+                    storeNameAr = store?.nameAr ?: if (resolvedSection != null) "هايبر ماركت العابد" else null,
+                    floor = store?.floor ?: if (resolvedSection != null) 0 else null,
+                    hypermarketSectionId = resolvedSection?.id
                 )
             )
         }
@@ -731,7 +798,8 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.deleteStore(id) }
     }
 
-    fun addOfferFromCms(
+    fun saveOfferFromCms(
+        id: String?,
         storeId: String,
         storeNameAr: String,
         titleAr: String,
@@ -739,55 +807,82 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         discountBadge: String,
         couponCode: String,
         validUntilAr: String,
-        termsAr: String
+        termsAr: String,
+        expiresAtMillis: Long = 0L
     ) {
         viewModelScope.launch {
+            val isNew = id.isNullOrBlank()
+            val finalId = id?.takeIf { it.isNotBlank() } ?: "offer_${System.currentTimeMillis()}"
             val cleanTitle = titleAr.trim()
             val cleanBadge = discountBadge.trim().ifEmpty { "عرض خاص" }
             val cleanCode = couponCode.trim().uppercase().ifEmpty { "ELABED" }
-            repository.upsertOffer(
-                OfferEntity(
-                    id = "offer_${System.currentTimeMillis()}",
+            val resolvedExpiry = if (expiresAtMillis > 0L) {
+                expiresAtMillis
+            } else {
+                System.currentTimeMillis() + 7L * OfferScheduleDateHelper.ONE_DAY_MS
+            }
+            val offerEntity = OfferEntity(
+                id = finalId,
+                storeId = storeId,
+                storeNameAr = storeNameAr,
+                titleAr = cleanTitle,
+                descriptionAr = descriptionAr.trim(),
+                discountBadge = cleanBadge,
+                couponCode = cleanCode,
+                validUntilAr = validUntilAr.trim().ifEmpty { "ساري لفترة محدودة" },
+                termsAr = termsAr.trim().ifEmpty { "يسري العرض داخل الفرع بالمول." },
+                isFeatured = true,
+                expiresAtMillis = resolvedExpiry
+            )
+            repository.upsertOffer(offerEntity)
+
+            // Update scheduled expiry reminder if this offer was saved by the visitor
+            val existingSaved = repository.getSavedOffer(finalId)
+            if (existingSaved != null) {
+                val updatedSaved = existingSaved.copy(
                     storeId = storeId,
                     storeNameAr = storeNameAr,
                     titleAr = cleanTitle,
-                    descriptionAr = descriptionAr.trim(),
-                    discountBadge = cleanBadge,
-                    couponCode = cleanCode,
-                    validUntilAr = validUntilAr.trim().ifEmpty { "ساري لفترة محدودة" },
-                    termsAr = termsAr.trim().ifEmpty { "يسري العرض داخل الفرع بالمول." },
-                    isFeatured = true
+                    expiresAtMillis = resolvedExpiry
                 )
-            )
+                repository.saveOffer(updatedSaved)
+                MallNotificationScheduler.scheduleSavedOfferExpiryReminder(getApplication(), updatedSaved)
+            }
 
-            // Trigger personalized offer notification if visitor interests match (or none selected)
-            val prefs = notificationPreferences.value
-            val storeCategory = places.value.firstOrNull { it.id == storeId }?.categoryName
-            val matchesInterest = prefs.selectedInterests.isEmpty() ||
-                (storeCategory != null && storeCategory in prefs.selectedInterests)
-            if (prefs.offersEnabled && matchesInterest) {
-                val notifTitle = "عرض جديد في $storeNameAr ($cleanBadge)"
-                val notifBody = "$cleanTitle — استخدم كود $cleanCode"
-                repository.addNotification(
-                    MallNotificationEntity(
-                        id = "notif_offer_${System.currentTimeMillis()}",
-                        titleAr = notifTitle,
-                        bodyAr = notifBody,
-                        categoryName = NotificationCategory.OFFER.name,
-                        timestampLabelAr = "الآن",
-                        linkedTargetId = storeId,
-                        linkedType = "STORE",
-                        isRead = false
+            if (isNew) {
+                val prefs = notificationPreferences.value
+                val storeCategory = places.value.firstOrNull { it.id == storeId }?.categoryName
+                val matchesInterest = prefs.selectedInterests.isEmpty() ||
+                    (storeCategory != null && storeCategory in prefs.selectedInterests)
+                if (prefs.offersEnabled && matchesInterest) {
+                    val notifTitle = "عرض جديد في $storeNameAr ($cleanBadge)"
+                    val notifBody = "$cleanTitle — استخدم كود $cleanCode"
+                    repository.addNotification(
+                        MallNotificationEntity(
+                            id = "notif_offer_${System.currentTimeMillis()}",
+                            titleAr = notifTitle,
+                            bodyAr = notifBody,
+                            categoryName = NotificationCategory.OFFER.name,
+                            timestampLabelAr = "الآن",
+                            linkedTargetId = storeId,
+                            linkedType = "STORE",
+                            isRead = false
+                        )
                     )
-                )
-                MallNotificationHelper.showMallNotification(
-                    context = getApplication(),
-                    notificationId = (System.currentTimeMillis() % 10000).toInt(),
-                    title = notifTitle,
-                    body = notifBody
-                )
+                    MallNotificationHelper.showMallNotification(
+                        context = getApplication(),
+                        notificationId = (System.currentTimeMillis() % 10000).toInt(),
+                        title = notifTitle,
+                        body = notifBody
+                    )
+                }
             }
         }
+    }
+
+    fun deleteOffer(id: String) {
+        MallNotificationScheduler.cancelSavedOfferExpiryReminder(getApplication(), id)
+        viewModelScope.launch { repository.deleteOffer(id) }
     }
 
     fun savePromoBannerFromAdmin(
@@ -856,9 +951,15 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
         locationPlaceId: String,
         locationLabelAr: String,
         floor: Int,
-        isNewOpening: Boolean
+        isNewOpening: Boolean,
+        scheduledDateMillis: Long = 0L
     ) {
         viewModelScope.launch {
+            val resolvedDate = if (scheduledDateMillis > 0L) {
+                scheduledDateMillis
+            } else {
+                System.currentTimeMillis() + 2L * OfferScheduleDateHelper.ONE_DAY_MS
+            }
             repository.upsertEvent(
                 EventEntity(
                     id = "event_${System.currentTimeMillis()}",
@@ -870,7 +971,8 @@ class MallViewModel(application: Application) : AndroidViewModel(application) {
                     locationLabelAr = locationLabelAr,
                     floor = floor,
                     isNewOpening = isNewOpening,
-                    badgeAr = if (isNewOpening) "افتتاح جديد" else "فعالية"
+                    badgeAr = if (isNewOpening) "افتتاح جديد" else "فعالية",
+                    scheduledDateMillis = resolvedDate
                 )
             )
         }

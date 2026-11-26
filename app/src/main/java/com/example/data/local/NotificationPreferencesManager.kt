@@ -86,18 +86,31 @@ class NotificationPreferencesManager(private val context: Context) {
         context.mallPreferencesDataStore.edit { it[Keys.ALERTS_ENABLED] = enabled }
     }
 
-    suspend fun toggleInterest(categoryName: String) {
+    suspend fun toggleInterest(categoryName: String): Boolean {
+        var changed = true
         context.mallPreferencesDataStore.edit { prefs ->
             val current = prefs[Keys.SELECTED_INTERESTS]?.toMutableSet() ?: mutableSetOf()
-            if (!current.add(categoryName)) {
+            if (categoryName in current) {
                 current.remove(categoryName)
+            } else if (current.size < MAX_VISITOR_INTERESTS) {
+                current.add(categoryName)
+            } else {
+                changed = false
+                return@edit
             }
             prefs[Keys.SELECTED_INTERESTS] = current
         }
+        return changed
     }
 
     suspend fun setSelectedInterests(interests: Set<String>) {
-        context.mallPreferencesDataStore.edit { it[Keys.SELECTED_INTERESTS] = interests }
+        context.mallPreferencesDataStore.edit {
+            it[Keys.SELECTED_INTERESTS] = interests.take(MAX_VISITOR_INTERESTS).toSet()
+        }
+    }
+
+    companion object {
+        const val MAX_VISITOR_INTERESTS = 3
     }
 
     suspend fun setDefaultMapMode(mode: MapMovementMode) {

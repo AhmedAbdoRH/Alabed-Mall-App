@@ -60,7 +60,18 @@ data class OfferEntity(
     val couponCode: String,
     val validUntilAr: String,
     val termsAr: String,
-    val isFeatured: Boolean = true
+    val isFeatured: Boolean = true,
+    val expiresAtMillis: Long = 0L
+)
+
+@Entity(tableName = "saved_offers")
+data class SavedOfferEntity(
+    @PrimaryKey val offerId: String,
+    val storeId: String,
+    val storeNameAr: String,
+    val titleAr: String,
+    val expiresAtMillis: Long,
+    val savedAtMillis: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "events")
@@ -74,7 +85,8 @@ data class EventEntity(
     val locationLabelAr: String,
     val floor: Int,
     val isNewOpening: Boolean = false,
-    val badgeAr: String
+    val badgeAr: String,
+    val scheduledDateMillis: Long = 0L
 )
 
 enum class NotificationCategory(val labelAr: String) {
@@ -137,6 +149,7 @@ data class ShoppingTaskEntity(
     val storeId: String? = null,
     val storeNameAr: String? = null,
     val floor: Int? = null,
+    val hypermarketSectionId: String? = null,
     val isChecked: Boolean = false,
     val createdAtMillis: Long = System.currentTimeMillis()
 )

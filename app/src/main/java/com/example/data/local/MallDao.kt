@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.example.data.model.EventEntity
 import com.example.data.model.MallNotificationEntity
 import com.example.data.model.OfferEntity
+import com.example.data.model.SavedOfferEntity
 import com.example.data.model.ShoppingTaskEntity
 import com.example.data.model.StoreEntity
 import com.example.data.model.TripStopEntity
@@ -47,6 +48,18 @@ interface MallDao {
 
     @Query("DELETE FROM offers WHERE id = :id")
     suspend fun deleteOfferById(id: String)
+
+    @Query("SELECT * FROM saved_offers ORDER BY savedAtMillis DESC")
+    fun observeSavedOffers(): Flow<List<SavedOfferEntity>>
+
+    @Query("SELECT * FROM saved_offers WHERE offerId = :offerId LIMIT 1")
+    suspend fun getSavedOfferById(offerId: String): SavedOfferEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSavedOffer(savedOffer: SavedOfferEntity)
+
+    @Query("DELETE FROM saved_offers WHERE offerId = :offerId")
+    suspend fun deleteSavedOfferById(offerId: String)
 
     @Query("SELECT * FROM events ORDER BY isNewOpening DESC, id ASC")
     fun observeAllEvents(): Flow<List<EventEntity>>

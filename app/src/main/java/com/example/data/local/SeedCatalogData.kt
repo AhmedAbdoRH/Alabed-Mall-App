@@ -490,6 +490,9 @@ object SeedCatalogData {
         )
     )
 
+    private const val DAY_MS = 24L * 60L * 60L * 1000L
+    private fun daysFromNow(days: Int): Long = System.currentTimeMillis() + days * DAY_MS
+
     val offers = listOf(
         OfferEntity(
             id = "offer_hyper_1",
@@ -501,7 +504,8 @@ object SeedCatalogData {
             couponCode = "ABEDFRESH25",
             validUntilAr = "ساري حتى نهاية الشهر",
             termsAr = "يسري العرض داخل هايبر ماركت العابد على الأصناف المحددة وحتى نفاد الكمية.",
-            isFeatured = true
+            isFeatured = true,
+            expiresAtMillis = daysFromNow(6)
         ),
         OfferEntity(
             id = "offer_samsung_2",
@@ -513,7 +517,8 @@ object SeedCatalogData {
             couponCode = "SAMABED26",
             validUntilAr = "ساري لمدة ١٤ يوماً",
             termsAr = "يطبق داخل فرع مول العابد فقط.",
-            isFeatured = true
+            isFeatured = true,
+            expiresAtMillis = daysFromNow(14)
         ),
         OfferEntity(
             id = "offer_furniture_3",
@@ -523,9 +528,10 @@ object SeedCatalogData {
             descriptionAr = "خصم إضافي ١٥٪ عند إبراز كود التطبيق على تشكيلة غرف المعيشة بالدور الأول.",
             discountBadge = "خصم ١٥٪",
             couponCode = "HOME15",
-            validUntilAr = "ساري حتى ١٥ ديسمبر",
+            validUntilAr = "ساري لمدة ٢١ يوماً",
             termsAr = "يشمل التركيب والتوصيل المجاني داخل القليوبية.",
-            isFeatured = true
+            isFeatured = true,
+            expiresAtMillis = daysFromNow(21)
         ),
         OfferEntity(
             id = "offer_tecno_4",
@@ -537,7 +543,8 @@ object SeedCatalogData {
             couponCode = "TECNOMALL",
             validUntilAr = "ساري هذا الأسبوع",
             termsAr = "يطبق في فرع مول العابد بالدور الأرضي.",
-            isFeatured = false
+            isFeatured = false,
+            expiresAtMillis = daysFromNow(7)
         ),
         OfferEntity(
             id = "offer_kids_5",
@@ -549,7 +556,8 @@ object SeedCatalogData {
             couponCode = "FUN50",
             validUntilAr = "الخميس والجمعة والسبت",
             termsAr = "الرصيد الإضافي صالح لمدة ٣٠ يوماً.",
-            isFeatured = false
+            isFeatured = false,
+            expiresAtMillis = daysFromNow(4)
         )
     )
 
@@ -564,7 +572,8 @@ object SeedCatalogData {
             locationLabelAr = "القوس الشرقي • الدور الأول",
             floor = 1,
             isNewOpening = true,
-            badgeAr = "افتتاح جديد"
+            badgeAr = "افتتاح جديد",
+            scheduledDateMillis = daysFromNow(2)
         ),
         EventEntity(
             id = "event_courtyard_nights",
@@ -576,7 +585,8 @@ object SeedCatalogData {
             locationLabelAr = "الساحة الوسطى المفتوحة • الدور الأرضي",
             floor = 0,
             isNewOpening = false,
-            badgeAr = "فعالية عائلية"
+            badgeAr = "فعالية عائلية",
+            scheduledDateMillis = daysFromNow(3)
         ),
         EventEntity(
             id = "event_tutu_carnival",
@@ -588,7 +598,8 @@ object SeedCatalogData {
             locationLabelAr = "توتو كيدز • الساحة الجنوبية الشرقية",
             floor = 0,
             isNewOpening = false,
-            badgeAr = "مهرجان ترفيهي"
+            badgeAr = "مهرجان ترفيهي",
+            scheduledDateMillis = daysFromNow(5)
         )
     )
 

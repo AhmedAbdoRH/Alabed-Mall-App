@@ -49,6 +49,7 @@ import com.example.data.map.MallFloorPlanGraph
 import com.example.data.model.AvatarState
 import com.example.data.model.OfferEntity
 import com.example.data.model.StoreEntity
+import com.example.data.search.ArabicSearchNormalizer
 import com.example.ui.theme.StatusOpenGreen
 
 @Composable
@@ -276,9 +277,14 @@ fun MapDestinationPickerSheet(
     val filtered = remember(places, filterQuery) {
         places.filter {
             filterQuery.isBlank() ||
-                it.nameAr.contains(filterQuery, ignoreCase = true) ||
-                it.category.labelAr.contains(filterQuery, ignoreCase = true) ||
-                it.zoneAr.contains(filterQuery, ignoreCase = true)
+                ArabicSearchNormalizer.matchesQuery(
+                    filterQuery,
+                    it.nameAr,
+                    it.nameEn,
+                    it.category.labelAr,
+                    it.zoneAr,
+                    it.descriptionAr
+                )
         }
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {

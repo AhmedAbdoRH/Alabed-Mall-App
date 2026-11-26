@@ -39,7 +39,8 @@ object MallTaskPlaceSuggester {
             "لعب", "لعبة", "ألعاب", "ملاهي", "طفل", "أطفال", "بينجو", "توتو"
         ) to MallPlaceCategory.ENTERTAINMENT,
         listOf(
-            "بنك", "صراف", "فلوس", "سحب", "إيداع", "فيزا", "تحويل", "مفقودات", "خدمة عملاء", "استعلام"
+            "بنك", "صراف", "فلوس", "سحب", "إيداع", "فيزا", "تحويل", "مفقودات",
+            "خدمة عملاء", "استعلام", "صيدلية", "دوا", "دواء", "علاج"
         ) to MallPlaceCategory.SERVICES
     )
 
@@ -79,10 +80,16 @@ object MallTaskPlaceSuggester {
                 }
         }
 
-        val tokens = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val normalizedQuery = ArabicSearchNormalizer.normalize(trimmed, stripDefiniteArticle = true)
+        val tokens = normalizedQuery.split(" ").filter { it.isNotBlank() }
+        val expandedTerms = tokens.flatMap { ArabicSearchNormalizer.expandTermWithSynonyms(it) }.toSet()
+
         val hintedCategories = keywordCategoryHints
             .filter { (keywords, _) ->
-                keywords.any { kw -> trimmed.contains(kw, ignoreCase = true) }
+                keywords.any { kw ->
+                    ArabicSearchNormalizer.containsNormalized(trimmed, kw) ||
+                        ArabicSearchNormalizer.normalize(kw, stripDefiniteArticle = true) in expandedTerms
+                }
             }
             .map { it.second }
             .toSet()
@@ -91,29 +98,30 @@ object MallTaskPlaceSuggester {
             var score = 0
             var reason = "${place.category.labelAr} • ${place.floorLabelAr}"
 
-            if (place.nameAr.contains(trimmed, ignoreCase = true) ||
-                place.nameEn.contains(trimmed, ignoreCase = true)
+            if (ArabicSearchNormalizer.containsNormalized(place.nameAr, trimmed) ||
+                ArabicSearchNormalizer.containsNormalized(place.nameEn, trimmed)
             ) {
                 score += 100
                 reason = "مطابق للاسم • ${place.floorLabelAr}"
             }
 
-            if (place.descriptionAr.contains(trimmed, ignoreCase = true)) {
+            if (ArabicSearchNormalizer.containsNormalized(place.descriptionAr, trimmed)) {
                 score += 60
                 reason = "متوفر في ${place.nameAr}"
             }
 
             tokens.forEach { token ->
                 if (token.length >= 2) {
-                    if (place.nameAr.contains(token, ignoreCase = true) ||
-                        place.nameEn.contains(token, ignoreCase = true)
+                    val variants = ArabicSearchNormalizer.expandTermWithSynonyms(token)
+                    if (variants.any { ArabicSearchNormalizer.containsNormalized(place.nameAr, it) } ||
+                        variants.any { ArabicSearchNormalizer.containsNormalized(place.nameEn, it) }
                     ) {
                         score += 45
                     }
-                    if (place.descriptionAr.contains(token, ignoreCase = true)) {
+                    if (variants.any { ArabicSearchNormalizer.containsNormalized(place.descriptionAr, it) }) {
                         score += 30
                     }
-                    if (place.category.labelAr.contains(token, ignoreCase = true)) {
+                    if (variants.any { ArabicSearchNormalizer.containsNormalized(place.category.labelAr, it) }) {
                         score += 25
                     }
                 }
@@ -126,7 +134,9 @@ object MallTaskPlaceSuggester {
 
             // Extra boost for Vodafone when user types خط / شريحة / انترنت
             if (place.id == "vodafone" &&
-                listOf("فودافون", "خط", "شريحة", "انترنت", "كاش", "رصيد").any { trimmed.contains(it, ignoreCase = true) }
+                listOf("فودافون", "خط", "شريحة", "انترنت", "كاش", "رصيد").any {
+                    ArabicSearchNormalizer.containsNormalized(trimmed, it)
+                }
             ) {
                 score += 75
                 reason = "خدمات اتصالات وإنترنت • ${place.floorLabelAr}"
@@ -134,7 +144,9 @@ object MallTaskPlaceSuggester {
 
             // Extra boost for perfumes when user types عطر / برفان / هدية
             if (place.id == "perfumes_oud" &&
-                listOf("عطر", "عطور", "برفان", "عود", "هدية", "هدايا").any { trimmed.contains(it, ignoreCase = true) }
+                listOf("عطر", "عطور", "برفان", "عود", "هدية", "هدايا").any {
+                    ArabicSearchNormalizer.containsNormalized(trimmed, it)
+                }
             ) {
                 score += 75
                 reason = "عطور وهدايا • ${place.floorLabelAr}"

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,6 +37,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -60,12 +62,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.data.map.HypermarketMapCatalog
 import com.example.data.model.ShoppingTaskEntity
+import com.example.sharing.MallShareHelper
 import com.example.ui.components.FloorPill
 import com.example.ui.theme.ElAbedOutline
 import com.example.ui.theme.ElAbedRoyalBlue
@@ -479,9 +484,11 @@ private fun HypermarketTasksTab(
     onClearChecked: () -> Unit,
     onNavigateToHypermarket: () -> Unit
 ) {
+    val context = LocalContext.current
     var itemInput by remember { mutableStateOf("") }
-    val departments = listOf("مواد غذائية", "لحوم ماي ميت", "مخبوزات وألبان", "أدوات منزلية", "منظفات")
-    var selectedDept by remember { mutableStateOf(departments.first()) }
+    val sections = HypermarketMapCatalog.sections
+    var selectedSectionId by remember { mutableStateOf(sections.first().id) }
+    val selectedSection = HypermarketMapCatalog.sectionById(selectedSectionId) ?: sections.first()
     val checkedCount = tasks.count { it.isChecked }
 
     LazyColumn(
@@ -534,14 +541,19 @@ private fun HypermarketTasksTab(
                     )
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(departments) { dept ->
+                        items(sections, key = { it.id }) { sec ->
                             FilterChip(
-                                selected = selectedDept == dept,
-                                onClick = { selectedDept = dept },
-                                label = { Text(dept, style = MaterialTheme.typography.labelLarge) },
+                                selected = selectedSection.id == sec.id,
+                                onClick = { selectedSectionId = sec.id },
+                                label = {
+                                    Text(
+                                        "${sec.routeOrder}. ${sec.nameAr}",
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = ElAbedRoyalBlueContainer,
-                                    selectedLabelColor = ElAbedRoyalBlue
+                                    selectedContainerColor = sec.softBgColor,
+                                    selectedLabelColor = sec.accentColor
                                 )
                             )
                         }
@@ -554,7 +566,8 @@ private fun HypermarketTasksTab(
                         Button(
                             onClick = {
                                 if (itemInput.isNotBlank()) {
-                                    onAddTask(itemInput, selectedDept)
+                                    val autoSec = HypermarketMapCatalog.resolveSectionForInput(itemInput, "")
+                                    onAddTask(itemInput, (autoSec ?: selectedSection).nameAr)
                                     itemInput = ""
                                 }
                             },
@@ -578,6 +591,31 @@ private fun HypermarketTasksTab(
                             Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("الهايبر على الخريطة", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (tasks.isNotEmpty()) {
+                        FilledTonalButton(
+                            onClick = {
+                                val text = MallShareHelper.buildFormattedShoppingListText(tasks)
+                                MallShareHelper.shareFormattedTextToWhatsApp(
+                                    context = context,
+                                    subject = "قائمة مشتريات مول العابد",
+                                    formattedText = text
+                                )
+                            },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = ElAbedVibrantGreen,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("مشاركة القائمة عبر واتساب", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

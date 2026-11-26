@@ -21,7 +21,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +60,9 @@ import com.example.data.model.OfferEntity
 import com.example.data.model.StoreEntity
 import com.example.ui.components.FloorPill
 import com.example.ui.components.StoreLogoBadge
+import com.example.ui.theme.ElAbedRoyalBlue
 import com.example.ui.theme.ElAbedSurfaceVariant
+import com.example.ui.theme.ElAbedVibrantGreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,11 +70,13 @@ import kotlinx.coroutines.launch
 fun StoreDetailScreen(
     store: StoreEntity?,
     storeOffers: List<OfferEntity>,
+    savedOfferIds: Set<String> = emptySet(),
     onBack: () -> Unit,
     onOpenIndoorMap: (String) -> Unit,
     onShareStore: (StoreEntity) -> Unit = {},
     onShareOffer: (OfferEntity) -> Unit = {},
     onAddStoreToTrip: (StoreEntity) -> Unit = {},
+    onToggleSaveOffer: (OfferEntity) -> Boolean = { true },
     onOpenCustomerService: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -400,15 +408,54 @@ fun StoreDetailScreen(
                                         )
                                     }
                                 }
-                                FilledTonalButton(
-                                    onClick = { onShareOffer(offer) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
+                                val isSaved = offer.id in savedOfferIds
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("مشاركة العرض بصورة ورابط", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                    Button(
+                                        onClick = {
+                                            val nowSaved = onToggleSaveOffer(offer)
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    if (nowSaved) {
+                                                        "تم حفظ العرض وجدولة تذكير قبل انتهائه بيوم"
+                                                    } else {
+                                                        "تمت إزالة العرض من المحفوظات وإلغاء التذكير"
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isSaved) ElAbedVibrantGreen else ElAbedRoyalBlue,
+                                            contentColor = Color.White
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (isSaved) "محفوظ ✓" else "حفظ وتذكير",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    FilledTonalButton(
+                                        onClick = { onShareOffer(offer) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("مشاركة العرض", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
